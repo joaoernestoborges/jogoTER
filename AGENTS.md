@@ -1,22 +1,11 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
-
 # AGENTS.md
 
 ## What this project is
 
 A school assignment ("Trabalho de Ensino Religioso") — a medieval 2D canvas
-platformer game about the Crusades. All UI text is Portuguese (pt-BR). Generated
-with Lovable on the TanStack Start template (`tanstack_start_ts_current`,
-see `.lovable/project.json`).
+platformer game about the Crusades, built to discuss multirreligiosity and
+religious tolerance. All UI text is Portuguese (pt-BR). Based on the TanStack
+Start template.
 
 ## Commands
 
@@ -24,7 +13,7 @@ Package manager is **Bun** (`bun.lock`, `bunfig.toml`). npm also works.
 
 ```sh
 bun install        # install deps
-bun run dev        # dev server (vite dev)
+bun run dev        # dev server (vite dev, http://localhost:8080)
 bun run build      # production build (nitro; Cloudflare is the default target)
 bun run build:dev  # build in development mode
 bun run preview    # preview the production build
@@ -35,26 +24,25 @@ bun run format     # Prettier --write .
 - **No tests and no CI exist.** There is no test script; don't invent one.
 - No dedicated typecheck script; `tsconfig.json` has `"noEmit": true`, so a
   plain `tsc` run is a typecheck.
-- Build output/deploy target is Nitro with Cloudflare preset (see comment in
-  `vite.config.ts` and `.wrangler/` entries in `.gitignore`).
+- Build output/deploy target is Nitro with the Cloudflare preset (see the
+  `nitro` plugin call in `vite.config.ts` and `.wrangler/` in `.gitignore`).
 
 ## Critical gotchas
 
-### Vite config is a wrapper — do not add standard plugins manually
+### Vite config wires the plugins manually — keep exactly one of each
 
-`vite.config.ts` uses `defineConfig` from `@lovable.dev/vite-tanstack-config`,
-which **already includes** TanStack devtools, `tanstackStart`, `viteReact`,
-`tailwindcss`, `tsConfigPaths`, `nitro`, `VITE_*` env injection, the `@` path
-alias, and dedupe/error-logger plugins. Adding any of these by hand creates
-duplicate plugins and **breaks the app**. Pass extra options via
-`defineConfig({ vite: { ... }, ... })` instead.
+`vite.config.ts` is a standard Vite config that adds, in order: `tailwindcss`,
+`tsConfigPaths`, `tanstackStart` (with import protection and the SSR server
+entry), `viteReact`, and — on `build` only — the `nitro` plugin defaulting to
+the `cloudflare-module` preset. Adding any of these a second time creates
+duplicate plugins and **breaks the app**.
 
 The `tanstackStart: { server: { entry: "server" } }` line redirects the SSR
 server entry to `src/server.ts` — keep it.
 
 ### SSR error-handling chain (don't break it)
 
-Three cooperating pieces recover errors that h3/Nitro would otherwise swallow
+Two cooperating pieces recover errors that h3/Nitro would otherwise swallow
 into an opaque `{"unhandled":true,"message":"HTTPError"}` 500:
 
 - `src/server.ts` — custom server entry wrapping
@@ -64,34 +52,28 @@ into an opaque `{"unhandled":true,"message":"HTTPError"}` 500:
 - `src/start.ts` — `createStart()` with an error middleware and CSRF
   middleware. **Defining `src/start.ts` opts out of Start's defaults, which is
   why CSRF is re-added explicitly.** If you edit this file, keep both.
-- `src/lib/lovable-error-reporting.ts` — forwards boundary-caught errors to
-  Lovable editor telemetry hooks (no-ops outside the editor preview).
+
+Route-level errors (not-found/error components) are reported with plain
+`console.error` in `src/routes/__root.tsx`.
 
 ### Bun supply-chain guard
 
 `bunfig.toml` sets `minimumReleaseAge = 86400` (24h): dependency versions
 published less than a day ago are skipped on install. If a brand-new release
 seems uninstallable, that's why. Adding an entry to
-`minimumReleaseAgeExcludes` requires user confirmation — only `@lovable.dev/*`
-packages are excluded today.
-
-### Stray duplicate files
-
-`vite.config(1).ts` and `src/components/ui/hover-card(1).tsx` are
-byte-identical browser-download duplicates. They are inert (Vite only reads
-`vite.config.ts`), safe to delete, and should never be edited.
+`minimumReleaseAgeExcludes` requires user confirmation.
 
 ## Architecture
 
-Request flow: `vite.config.ts` (Lovable wrapper) → `src/server.ts` (SSR fetch
-wrapper) → TanStack Start entry (`src/start.ts` middleware: error + CSRF) →
-router from `src/router.tsx` (built from generated route tree, with a
-`QueryClient` in router context) → routes in `src/routes/`.
+Request flow: `vite.config.ts` → `src/server.ts` (SSR fetch wrapper) →
+TanStack Start entry (`src/start.ts` middleware: error + CSRF) → router from
+`src/router.tsx` (built from generated route tree, with a `QueryClient` in
+router context) → routes in `src/routes/`.
 
 ### Routing (TanStack Router, file-based)
 
 - Route files live in `src/routes/`; conventions are documented in
-  `src/routes/README.md` (dynamic params use `$id` not `{id}`, splats read
+  `src/routes/README.md` (dynamic Params use `$id` not `{id}`, splats read
   `_splat`, layouts are `_layout.tsx`, etc.).
 - `src/routeTree.gen.ts` is **auto-generated — never edit it** (also in
   `.prettierignore`).
@@ -99,8 +81,7 @@ router from `src/router.tsx` (built from generated route tree, with a
   `createRootRouteWithContext<{ queryClient: QueryClient }>()`; `RootShell`
   (`shellComponent`) renders the html/head/body document shell, and
   `RootComponent` wraps everything in `QueryClientProvider`. Do not remove the
-  `<Outlet />`. It also defines custom `notFoundComponent`/`errorComponent`
-  that report through `reportLovableError`.
+  `<Outlet />`. It also defines custom `notFoundComponent`/`errorComponent`.
 
 ### The app itself: one big game file
 

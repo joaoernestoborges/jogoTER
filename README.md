@@ -1,29 +1,51 @@
-# Welcome to your Lovable project
+# Trabalho de Ensino Religioso — Jogo Medieval
 
-This project was built with [Lovable](https://lovable.dev).
+Jogo de plataforma 2D (canvas HTML5) ambientado no período medieval das Cruzadas,
+desenvolvido como **Trabalho de Ensino Religioso**.
 
-## Build with Lovable
+## Objetivo pedagógico
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+O jogo tem como objetivo abordar a **multirreligiosidade** e a **tolerância
+religiosa**. Usando o contexto das Cruzadas — momento histórico de encontro e
+conflito entre cristãos, muçulmanos e judeus —, a proposta é provocar a reflexão
+sobre a diversidade de crenças, o diálogo entre religiões e o respeito às
+diferenças no mundo atual.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+## Como jogar
 
-## Development
+| Tecla           | Ação                                                     |
+| --------------- | -------------------------------------------------------- |
+| `A` / `D`       | Mover para a esquerda / direita                          |
+| `Espaço`        | Pular / agir (abrir baú, sair de casa, pegar o escudo)   |
+| `E` / `W` / `Q` | Esquiva combinada (cores) durante os golpes dos inimigos |
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Percurso: interior da casa → aldeia medieval → casa do escudo → fase final até o
+moinho. Abra o baú, pegue o escudo templário e enfrente os soldados e o general.
+
+## Rodando o projeto
+
+Requisito: [Bun](https://bun.sh) (npm também funciona).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install        # instala as dependências
+bun run dev        # servidor de desenvolvimento (http://localhost:8080)
+bun run build      # build de produção (Nitro; alvo padrão Cloudflare)
+bun run build:dev  # build em modo de desenvolvimento
+bun run preview    # serve o build de produção
+bun run lint       # ESLint (inclui regras do Prettier)
+bun run format     # Prettier --write .
 ```
 
-## Built with
+Não há testes automatizados nem CI neste projeto.
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+## Estrutura do código
+
+- `src/routes/index.tsx` — todo o jogo: menu, créditos e o loop de canvas
+  (900×520, aldeia com rolagem de 4× a largura da tela).
+- `src/routes/` — rotas do TanStack Router (baseado em arquivos).
+- `src/components/ui/` — componentes shadcn/ui.
+- `src/styles.css` — tema Tailwind v4 (via CSS, sem arquivo de config).
+
+## Créditos
+
+Trabalho escolar de Ensino Religioso. Veja a tela de créditos do jogo.

@@ -95,13 +95,7 @@ function Index() {
   );
 }
 
-function MenuButton({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-}) {
+function MenuButton({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
@@ -718,12 +712,7 @@ function drawInside(
   }
 }
 
-function drawShieldHouse(
-  ctx: CanvasRenderingContext2D,
-  ball: Ball,
-  t: number,
-  taken: boolean,
-) {
+function drawShieldHouse(ctx: CanvasRenderingContext2D, ball: Ball, t: number, taken: boolean) {
   stoneRoom(ctx);
   drawTorch(ctx, 220, 140, t);
   drawTorch(ctx, 700, 140, t);
@@ -1036,12 +1025,7 @@ function drawMillExit(ctx: CanvasRenderingContext2D, camX: number) {
   ctx.textAlign = "left";
 }
 
-function drawKnight(
-  ctx: CanvasRenderingContext2D,
-  camX: number,
-  t: number,
-  ball: Ball,
-) {
+function drawKnight(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: Ball) {
   const x = KNIGHT_X - camX;
   if (x < -140 || x > W + 140) return;
   const base = GROUND;
