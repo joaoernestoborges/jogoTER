@@ -19,6 +19,9 @@ diferenças no mundo atual.
 | `Espaço`        | Pular / agir (abrir baú, sair de casa, pegar o escudo)   |
 | `E` / `W` / `Q` | Esquiva combinada (cores) durante os golpes dos inimigos |
 
+No celular: deslize o dedo para andar, toque com 1 dedo para pular/agir, toque
+com 2 dedos para `Q`, 3 dedos para `W` e 4 dedos para `E`.
+
 Percurso: interior da casa → aldeia medieval → casa do escudo → moinho (ranking
 com estrelas conforme os corações) → fase 2. Abra o baú, pegue o escudo
 templário, enfrente os soldados e o general e defenda a aldeia na fase 2.

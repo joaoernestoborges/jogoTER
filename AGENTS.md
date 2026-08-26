@@ -96,8 +96,10 @@ and a full canvas game loop inside a single `useEffect` (fixed 900×520 canvas,
   `idle → charging → vulnerable → dizzy → pinned → gone`, timed in frames
   (60 fps assumptions: `CHARGE=120`, `VULN=240`, `DIZZY=180`).
 - Controls: A/D move, Space jump/act, E/W/Q color-matched dodge during enemy
-  strikes. World positions are constants (`KNIGHT_X`, `SOLDIER1_X`, `GENERAL_X`,
-  `MILL_X`, …) at the top of the file.
+  strikes. Touch (mobile): 1-finger swipe moves, 1-finger tap jumps/acts,
+  2/3/4-finger taps map to Q/W/E — implemented in the same `useEffect` as the
+  keyboard listeners in `src/routes/index.tsx`. World positions are constants
+  (`KNIGHT_X`, `SOLDIER1_X`, `GENERAL_X`, `MILL_X`, …) at the top of the file.
 
 ## Conventions
 

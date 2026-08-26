@@ -90,6 +90,9 @@ function Index() {
           <p className="text-sm text-[#c2ab84] text-center">
             A / D para andar · Espaço para pular e agir · aperte E / W / Q (aura roxa / verde /
             azul) no momento do golpe para desviar ou defender
+            <br />
+            No celular: deslize para andar · toque com 1 dedo para pular e agir · 2 dedos = Q · 3
+            dedos = W · 4 dedos = E
           </p>
           <div className="w-64">
             <MenuButton onClick={() => setScreen("menu")}>Voltar ao menu</MenuButton>
@@ -217,6 +220,79 @@ function Game({ onDeath }: { onDeath: () => void }) {
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+
+    // ---- controles de toque (celular) ----
+    // deslize com 1 dedo: andar · toque com 1 dedo: pular/agir
+    // 2 dedos = Q · 3 dedos = W · 4 dedos = E
+    const SWIPE = 30;
+    let touchStart: { x: number; y: number; t: number } | null = null;
+    let touchLast = { x: 0, y: 0 };
+    let maxTouches = 0;
+    let dodgeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const touchKey = (fingers: number) =>
+      fingers === 2 ? "q" : fingers === 3 ? "w" : fingers === 4 ? "e" : null;
+
+    const onTouchStart = (ev: TouchEvent) => {
+      ev.preventDefault();
+      if (ev.touches.length === 1) {
+        const t0 = ev.touches[0]!;
+        touchStart = { x: t0.clientX, y: t0.clientY, t: performance.now() };
+        touchLast = { x: t0.clientX, y: t0.clientY };
+        maxTouches = 1;
+      } else {
+        touchStart = null;
+        keys["a"] = false;
+        keys["d"] = false;
+        maxTouches = Math.max(maxTouches, ev.touches.length);
+        if (dodgeTimer) clearTimeout(dodgeTimer);
+        dodgeTimer = setTimeout(() => {
+          dodgeTimer = null;
+          const k = touchKey(maxTouches);
+          maxTouches = 0;
+          if (!k) return;
+          justPressed[k] = true;
+          keys[k] = true;
+          setTimeout(() => {
+            keys[k] = false;
+          }, 120);
+        }, 90);
+      }
+    };
+
+    const onTouchMove = (ev: TouchEvent) => {
+      ev.preventDefault();
+      if (ev.touches.length !== 1 || !touchStart) return;
+      const t0 = ev.touches[0]!;
+      touchLast = { x: t0.clientX, y: t0.clientY };
+      const dx = t0.clientX - touchStart.x;
+      keys["a"] = dx < -SWIPE;
+      keys["d"] = dx > SWIPE;
+    };
+
+    const onTouchEnd = (ev: TouchEvent) => {
+      ev.preventDefault();
+      if (ev.touches.length > 0) return;
+      keys["a"] = false;
+      keys["d"] = false;
+      if (touchStart) {
+        const dur = performance.now() - touchStart.t;
+        const moved = Math.hypot(touchLast.x - touchStart.x, touchLast.y - touchStart.y);
+        touchStart = null;
+        if (dur < 350 && moved < SWIPE) {
+          justPressed[" "] = true;
+          keys[" "] = true;
+          setTimeout(() => {
+            keys[" "] = false;
+          }, 120);
+        }
+      }
+    };
+
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: false });
+    canvas.addEventListener("touchcancel", onTouchEnd, { passive: false });
 
     let raf = 0;
     let t = 0;
@@ -547,8 +623,13 @@ function Game({ onDeath }: { onDeath: () => void }) {
     raf = requestAnimationFrame(step);
     return () => {
       cancelAnimationFrame(raf);
+      if (dodgeTimer) clearTimeout(dodgeTimer);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchmove", onTouchMove);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [onDeath]);
 
@@ -559,7 +640,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
       height={H}
       tabIndex={0}
       aria-label="Área de jogo: bola em uma casa medieval e aldeia"
-      className="max-w-full rounded-lg border-4 border-[#5b432a] shadow-2xl outline-none"
+      className="max-w-full touch-none select-none rounded-lg border-4 border-[#5b432a] shadow-2xl outline-none"
     />
   );
 }
@@ -974,7 +1055,10 @@ function drawShieldHouse2D(ctx: CanvasRenderingContext2D, camX: number, t: numbe
   const x = SHIELD_HOUSE_X - camX;
   if (x < -200 || x > W + 200) return;
   // mesma casa das do fundo; a opção de entrar aparece ao passar pela porta
+  ctx.save();
+  ctx.translate(-camX, 0);
   drawVillageHouse(ctx, SHIELD_HOUSE_X - 85, 168, t, 4);
+  ctx.restore();
 }
 
 function drawMill(ctx: CanvasRenderingContext2D, camX: number, general: Enemy) {
