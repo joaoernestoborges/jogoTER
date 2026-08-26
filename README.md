@@ -19,8 +19,9 @@ diferenças no mundo atual.
 | `Espaço`        | Pular / agir (abrir baú, sair de casa, pegar o escudo)   |
 | `E` / `W` / `Q` | Esquiva combinada (cores) durante os golpes dos inimigos |
 
-Percurso: interior da casa → aldeia medieval → casa do escudo → fase final até o
-moinho. Abra o baú, pegue o escudo templário e enfrente os soldados e o general.
+Percurso: interior da casa → aldeia medieval → casa do escudo → moinho (ranking
+com estrelas conforme os corações) → fase 2. Abra o baú, pegue o escudo
+templário, enfrente os soldados e o general e defenda a aldeia na fase 2.
 
 ## Rodando o projeto
 

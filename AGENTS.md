@@ -89,8 +89,10 @@ router context) → routes in `src/routes/`.
 and a full canvas game loop inside a single `useEffect` (fixed 900×520 canvas,
 4×-width scrolling village). Game structure to know before editing:
 
-- Phases: `intro` (house interior) → `village` → `shieldhouse` → `fase2`.
-- Enemies (`soldier` ×2, `general`) run a state machine:
+- Phases: `intro` (house interior) → `village` → `shieldhouse` → `millinside`
+  (ranking/stars screen) → `fase2`.
+- Enemies (village: `soldier` ×2 + `general`; fase 2: `soldier` ×3) run a state
+  machine:
   `idle → charging → vulnerable → dizzy → pinned → gone`, timed in frames
   (60 fps assumptions: `CHARGE=120`, `VULN=240`, `DIZZY=180`).
 - Controls: A/D move, Space jump/act, E/W/Q color-matched dodge during enemy

@@ -42,12 +42,17 @@ const CHEST = { x: 380, y: GROUND - 54, w: 90, h: 54 };
 const DOOR = { x: 780, y: GROUND - 130, w: 76, h: 130 };
 
 const KNIGHT_X = 760;
-const SHIELD_HOUSE_X = 1300; // porta da casa do escudo (na vila)
+const SHIELD_HOUSE_X = 1205; // porta da casa do escudo (na vila)
 const SOLDIER1_X = 2050;
 const SOLDIER2_X = 2600;
 const GENERAL_X = 3050;
 const MILL_X = 3380;
-const MILL_DOOR = { x: MILL_X + 6, y: GROUND - 110, w: 70, h: 110 };
+const MILL_DOOR = { x: MILL_X + 6, y: GROUND - 130, w: 70, h: 130 };
+
+// soldados muçulmanos da fase 2
+const F2_SOLDIER1_X = 1200;
+const F2_SOLDIER2_X = 2100;
+const F2_SOLDIER3_X = 3000;
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("menu");
@@ -160,7 +165,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let justPressed: Record<string, boolean> = {};
     const ball: Ball = { x: 120, y: GROUND - 18, vx: 0, vy: 0, r: 18, onGround: true };
 
-    let phase: "intro" | "inside" | "village" | "shieldhouse" | "fase2" = "intro";
+    let phase: "intro" | "inside" | "village" | "shieldhouse" | "millinside" | "fase2" = "intro";
     let introT = 0;
     let chestOpen = 0;
     let camX = 0;
@@ -173,20 +178,29 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let dead = false;
     let banner = "";
     let bannerT = 0;
+    let millT = 0;
+    let millStars = 5;
 
     const CHARGE = 120; // 2s para carregar o golpe
     const VULN = 240; // 4s vulnerável
     const DIZZY = 180; // 3s tonto
 
-    const enemies: Enemy[] = [
+    const villageEnemies: Enemy[] = [
       makeEnemy("soldier", SOLDIER1_X),
       makeEnemy("soldier", SOLDIER2_X),
       makeEnemy("general", GENERAL_X),
     ];
+    const fase2Enemies: Enemy[] = [
+      makeEnemy("soldier", F2_SOLDIER1_X),
+      makeEnemy("soldier", F2_SOLDIER2_X),
+      makeEnemy("soldier", F2_SOLDIER3_X),
+    ];
+    const general = villageEnemies[2]!;
+    let enemies = villageEnemies;
     let current = 0;
 
     const activeEnemy = (): Enemy | null => {
-      if (phase !== "village") return null;
+      if (phase !== "village" && phase !== "fase2") return null;
       const e = enemies[current];
       return e && e.state !== "gone" ? e : null;
     };
@@ -346,7 +360,11 @@ function Game({ onDeath }: { onDeath: () => void }) {
         if (e.timer >= DIZZY) {
           e.state = "gone";
           current = Math.min(current + 1, enemies.length - 1);
-          say("Inimigo derrotado!");
+          if (enemies === fase2Enemies && fase2Enemies.every((en) => en.state === "gone")) {
+            say("Aldeia defendida! Você venceu!");
+          } else {
+            say("Inimigo derrotado!");
+          }
         }
       } else if (e.state === "pinned") {
         if (e.timer >= 150) {
@@ -424,19 +442,33 @@ function Game({ onDeath }: { onDeath: () => void }) {
           ball.vx = 0;
         }
         if (hasShield) hintText(ctx, "Volte pela porta à esquerda ←");
+      } else if (phase === "millinside") {
+        millT++;
+        drawMillInside(ctx, ball, millT, millStars, t);
+        if (millT > 216 && justPressed[" "]) {
+          phase = "fase2";
+          fade = 1;
+          enemies = fase2Enemies;
+          current = 0;
+          ball.x = 160;
+          ball.y = GROUND - ball.r;
+          ball.vx = 0;
+          ball.vy = 0;
+          say("Fase 2 — outra parte da aldeia medieval");
+        }
       } else if (phase === "village" || phase === "fase2") {
         const e = activeEnemy();
         const frozen = !!e && (e.state === "charging" || e.state === "vulnerable");
         if (!dead) physics(VILLAGE_W, frozen);
-        if (phase === "village") combat();
+        if (phase === "village" || phase === "fase2") combat();
 
         camX = Math.max(0, Math.min(VILLAGE_W - W, ball.x - W / 2));
         drawVillage(ctx, ball, t, camX, phase === "fase2");
 
         if (phase === "village") {
           drawKnight(ctx, camX, t, ball);
-          drawShieldHouse2D(ctx, camX);
-          drawMill(ctx, camX, enemies[2]!);
+          drawShieldHouse2D(ctx, camX, t);
+          drawMill(ctx, camX, general);
           for (const en of enemies) drawEnemy(ctx, camX, t, en);
           drawHud(ctx, hearts, hasShield, enemies[current]!);
 
@@ -454,24 +486,23 @@ function Game({ onDeath }: { onDeath: () => void }) {
           }
 
           // entrar no moinho
-          if (
-            enemies[2]!.state === "gone" &&
-            Math.abs(ball.x - (MILL_DOOR.x + MILL_DOOR.w / 2)) < 50
-          ) {
+          if (general.state === "gone" && Math.abs(ball.x - (MILL_DOOR.x + MILL_DOOR.w / 2)) < 50) {
             hintText(ctx, "Aperte ESPAÇO para entrar no moinho");
             if (justPressed[" "]) {
-              phase = "fase2";
+              phase = "millinside";
               fade = 1;
-              ball.x = 160;
+              millT = 0;
+              millStars = Math.max(1, Math.min(5, hearts));
+              ball.x = W / 2;
               ball.y = GROUND - ball.r;
               ball.vx = 0;
               ball.vy = 0;
-              say("Fase 2 — outra parte da aldeia medieval");
             }
           }
         } else {
           drawMillExit(ctx, camX);
-          drawHud(ctx, hearts, hasShield, null);
+          for (const en of enemies) drawEnemy(ctx, camX, t, en);
+          drawHud(ctx, hearts, hasShield, enemies[current] ?? null);
         }
 
         if (hitFlash > 0) {
@@ -563,11 +594,11 @@ function drawTemplarShield(ctx: CanvasRenderingContext2D, x: number, y: number, 
   ctx.scale(s, s);
   // "dentes" na parte superior
   ctx.fillStyle = "#b9c2cc";
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
     ctx.beginPath();
-    ctx.moveTo(-26 + i * 13, -30);
-    ctx.lineTo(-19.5 + i * 13, -46);
-    ctx.lineTo(-13 + i * 13, -30);
+    ctx.moveTo(-28 + i * 14, -30);
+    ctx.lineTo(-21 + i * 14, -47);
+    ctx.lineTo(-14 + i * 14, -30);
     ctx.closePath();
     ctx.fill();
   }
@@ -750,6 +781,94 @@ function drawShieldHouse(ctx: CanvasRenderingContext2D, ball: Ball, t: number, t
   ctx.textAlign = "left";
 }
 
+function drawVillageHouse(
+  ctx: CanvasRenderingContext2D,
+  bx: number,
+  bh2: number,
+  t: number,
+  i: number,
+) {
+  const by = GROUND - bh2;
+
+  ctx.fillStyle = "#8f8a7a";
+  ctx.fillRect(bx, GROUND - 40, 170, 40);
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 2;
+  for (let sy = GROUND - 40; sy < GROUND; sy += 13) {
+    for (let sx = bx; sx < bx + 170; sx += 28) {
+      ctx.strokeRect(sx, sy, 28, 13);
+    }
+  }
+
+  ctx.fillStyle = i % 2 === 0 ? "#e6dcc4" : "#dbcfae";
+  ctx.fillRect(bx - 10, by, 190, bh2 - 40);
+  ctx.strokeStyle = "#4a3520";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(bx - 10, by, 190, bh2 - 40);
+
+  ctx.strokeStyle = "#5b3f24";
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(bx - 10, by + 26);
+  ctx.lineTo(bx + 180, by + 26);
+  ctx.moveTo(bx + 40, by);
+  ctx.lineTo(bx + 40, GROUND - 40);
+  ctx.moveTo(bx + 130, by);
+  ctx.lineTo(bx + 130, GROUND - 40);
+  ctx.moveTo(bx + 40, by + 26);
+  ctx.lineTo(bx + 130, GROUND - 40);
+  ctx.moveTo(bx + 130, by + 26);
+  ctx.lineTo(bx + 40, GROUND - 40);
+  ctx.stroke();
+
+  ctx.fillStyle = i % 3 === 0 ? "#9c7a3f" : "#7d4a34";
+  ctx.beginPath();
+  ctx.moveTo(bx - 26, by + 4);
+  ctx.lineTo(bx + 85, by - 74);
+  ctx.lineTo(bx + 196, by + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = "#7a7266";
+  ctx.fillRect(bx + 140, by - 60, 22, 46);
+  ctx.fillStyle = "rgba(230,230,230,0.35)";
+  ctx.beginPath();
+  ctx.arc(bx + 151 + Math.sin((t + i * 20) / 30) * 8, by - 80, 12, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#5c3d21";
+  ctx.beginPath();
+  ctx.moveTo(bx + 62, GROUND);
+  ctx.lineTo(bx + 62, GROUND - 40);
+  ctx.arc(bx + 85, GROUND - 40, 23, Math.PI, 0);
+  ctx.lineTo(bx + 108, GROUND);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#2a1c10";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = "#3c2a18";
+  ctx.fillRect(bx + 6, by + 44, 32, 30);
+  ctx.fillRect(bx + 142, by + 44, 32, 30);
+  ctx.fillStyle = "#f2c96a";
+  ctx.fillRect(bx + 10, by + 48, 24, 22);
+  ctx.fillRect(bx + 146, by + 48, 24, 22);
+
+  if (i % 3 === 1) {
+    ctx.fillStyle = "#8c2b2b";
+    ctx.beginPath();
+    ctx.moveTo(bx + 176, by + 10);
+    ctx.lineTo(bx + 206, by + 20);
+    ctx.lineTo(bx + 176, by + 46);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
 function drawVillage(
   ctx: CanvasRenderingContext2D,
   ball: Ball,
@@ -792,87 +911,10 @@ function drawVillage(
 
   const seed = fase2 ? 5 : 0;
   for (let i = 0; i < 14; i++) {
+    if (!fase2 && i === 4) continue; // vaga ocupada pela casa do escudo
     const bx = 120 + i * 250;
     const bh2 = 140 + (((i + seed) * 37) % 60);
-    const by = GROUND - bh2;
-
-    ctx.fillStyle = "#8f8a7a";
-    ctx.fillRect(bx, GROUND - 40, 170, 40);
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 2;
-    for (let sy = GROUND - 40; sy < GROUND; sy += 13) {
-      for (let sx = bx; sx < bx + 170; sx += 28) {
-        ctx.strokeRect(sx, sy, 28, 13);
-      }
-    }
-
-    ctx.fillStyle = i % 2 === 0 ? "#e6dcc4" : "#dbcfae";
-    ctx.fillRect(bx - 10, by, 190, bh2 - 40);
-    ctx.strokeStyle = "#4a3520";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(bx - 10, by, 190, bh2 - 40);
-
-    ctx.strokeStyle = "#5b3f24";
-    ctx.lineWidth = 7;
-    ctx.beginPath();
-    ctx.moveTo(bx - 10, by + 26);
-    ctx.lineTo(bx + 180, by + 26);
-    ctx.moveTo(bx + 40, by);
-    ctx.lineTo(bx + 40, GROUND - 40);
-    ctx.moveTo(bx + 130, by);
-    ctx.lineTo(bx + 130, GROUND - 40);
-    ctx.moveTo(bx + 40, by + 26);
-    ctx.lineTo(bx + 130, GROUND - 40);
-    ctx.moveTo(bx + 130, by + 26);
-    ctx.lineTo(bx + 40, GROUND - 40);
-    ctx.stroke();
-
-    ctx.fillStyle = i % 3 === 0 ? "#9c7a3f" : "#7d4a34";
-    ctx.beginPath();
-    ctx.moveTo(bx - 26, by + 4);
-    ctx.lineTo(bx + 85, by - 74);
-    ctx.lineTo(bx + 196, by + 4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.fillStyle = "#7a7266";
-    ctx.fillRect(bx + 140, by - 60, 22, 46);
-    ctx.fillStyle = "rgba(230,230,230,0.35)";
-    ctx.beginPath();
-    ctx.arc(bx + 151 + Math.sin((t + i * 20) / 30) * 8, by - 80, 12, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = "#5c3d21";
-    ctx.beginPath();
-    ctx.moveTo(bx + 62, GROUND);
-    ctx.lineTo(bx + 62, GROUND - 40);
-    ctx.arc(bx + 85, GROUND - 40, 23, Math.PI, 0);
-    ctx.lineTo(bx + 108, GROUND);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#2a1c10";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.fillStyle = "#3c2a18";
-    ctx.fillRect(bx + 6, by + 44, 32, 30);
-    ctx.fillRect(bx + 142, by + 44, 32, 30);
-    ctx.fillStyle = "#f2c96a";
-    ctx.fillRect(bx + 10, by + 48, 24, 22);
-    ctx.fillRect(bx + 146, by + 48, 24, 22);
-
-    if (i % 3 === 1) {
-      ctx.fillStyle = "#8c2b2b";
-      ctx.beginPath();
-      ctx.moveTo(bx + 176, by + 10);
-      ctx.lineTo(bx + 206, by + 20);
-      ctx.lineTo(bx + 176, by + 46);
-      ctx.closePath();
-      ctx.fill();
-    }
+    drawVillageHouse(ctx, bx, bh2, t, i);
   }
 
   const px = VILLAGE_W / 2;
@@ -928,26 +970,11 @@ function speech(ctx: CanvasRenderingContext2D, x: number, y: number, text: strin
   ctx.textAlign = "left";
 }
 
-function drawShieldHouse2D(ctx: CanvasRenderingContext2D, camX: number) {
+function drawShieldHouse2D(ctx: CanvasRenderingContext2D, camX: number, t: number) {
   const x = SHIELD_HOUSE_X - camX;
-  if (x < -160 || x > W + 160) return;
-  // porta destacada com estandarte templário
-  ctx.fillStyle = "#4a2f16";
-  ctx.beginPath();
-  ctx.moveTo(x - 30, GROUND);
-  ctx.lineTo(x - 30, GROUND - 60);
-  ctx.arc(x, GROUND - 60, 30, Math.PI, 0);
-  ctx.lineTo(x + 30, GROUND);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = "#e8c46a";
-  ctx.lineWidth = 4;
-  ctx.stroke();
-  ctx.fillStyle = "#f2ece0";
-  ctx.fillRect(x - 16, GROUND - 150, 32, 46);
-  ctx.fillStyle = "#b3352f";
-  ctx.fillRect(x - 3, GROUND - 146, 6, 38);
-  ctx.fillRect(x - 13, GROUND - 133, 26, 6);
+  if (x < -200 || x > W + 200) return;
+  // mesma casa das do fundo; a opção de entrar aparece ao passar pela porta
+  drawVillageHouse(ctx, SHIELD_HOUSE_X - 85, 168, t, 4);
 }
 
 function drawMill(ctx: CanvasRenderingContext2D, camX: number, general: Enemy) {
@@ -957,8 +984,8 @@ function drawMill(ctx: CanvasRenderingContext2D, camX: number, general: Enemy) {
   ctx.fillStyle = "#9b9081";
   ctx.beginPath();
   ctx.moveTo(x - 20, GROUND);
-  ctx.lineTo(x + 8, GROUND - 200);
-  ctx.lineTo(x + 74, GROUND - 200);
+  ctx.lineTo(x + 8, GROUND - 270);
+  ctx.lineTo(x + 74, GROUND - 270);
   ctx.lineTo(x + 102, GROUND);
   ctx.closePath();
   ctx.fill();
@@ -968,19 +995,19 @@ function drawMill(ctx: CanvasRenderingContext2D, camX: number, general: Enemy) {
   // telhado
   ctx.fillStyle = "#6d4a3a";
   ctx.beginPath();
-  ctx.moveTo(x - 2, GROUND - 198);
-  ctx.lineTo(x + 41, GROUND - 250);
-  ctx.lineTo(x + 84, GROUND - 198);
+  ctx.moveTo(x - 2, GROUND - 268);
+  ctx.lineTo(x + 41, GROUND - 325);
+  ctx.lineTo(x + 84, GROUND - 268);
   ctx.closePath();
   ctx.fill();
   // pás
   ctx.save();
-  ctx.translate(x + 41, GROUND - 210);
+  ctx.translate(x + 41, GROUND - 282);
   ctx.rotate(performance.now() / 2200);
   ctx.fillStyle = "#c8b48a";
   for (let i = 0; i < 4; i++) {
     ctx.rotate(Math.PI / 2);
-    ctx.fillRect(-6, -110, 12, 100);
+    ctx.fillRect(-7, -128, 14, 116);
   }
   ctx.restore();
   // porta
@@ -992,17 +1019,75 @@ function drawMill(ctx: CanvasRenderingContext2D, camX: number, general: Enemy) {
 
   // general preso na parede pelo escudo
   if (general.state === "pinned" || (general.state === "gone" && general.shieldThrow > 0)) {
-    const gx = x + 100;
+    // contraforte de pedra onde ele fica cravado
+    ctx.fillStyle = "#8a8074";
+    ctx.beginPath();
+    ctx.moveTo(x + 58, GROUND);
+    ctx.lineTo(x + 62, GROUND - 160);
+    ctx.lineTo(x + 112, GROUND - 160);
+    ctx.lineTo(x + 116, GROUND);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#5b5248";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    const gx = x + 88;
     ctx.save();
-    ctx.translate(gx, GROUND - 90);
-    ctx.fillStyle = "#3f5a4a";
-    ctx.fillRect(-16, -30, 32, 60);
+    ctx.translate(gx, GROUND - 74);
+    ctx.rotate(0.06);
+    // braços abertos contra a parede
+    ctx.strokeStyle = "#3f5a4a";
+    ctx.lineWidth = 10;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(-13, -36);
+    ctx.lineTo(-30, -48);
+    ctx.moveTo(13, -36);
+    ctx.lineTo(30, -48);
+    ctx.stroke();
+    // pernas penduradas
+    ctx.beginPath();
+    ctx.moveTo(-8, 8);
+    ctx.lineTo(-14, 30);
+    ctx.moveTo(8, 8);
+    ctx.lineTo(12, 30);
+    ctx.stroke();
+    ctx.lineCap = "butt";
+    // corpo
+    ctx.fillStyle = "#2f4a3c";
+    ctx.fillRect(-16, -46, 32, 56);
+    // cabeça com turbante
     ctx.fillStyle = "#d8cfae";
     ctx.beginPath();
-    ctx.arc(0, -42, 13, 0, Math.PI * 2);
+    ctx.arc(0, -58, 12, 0, Math.PI * 2);
     ctx.fill();
+    ctx.fillStyle = "#e8e2d2";
+    ctx.beginPath();
+    ctx.ellipse(0, -64, 15, 8, 0, Math.PI, 0);
+    ctx.fill();
+    // olhos fechados (desmaiado)
+    ctx.strokeStyle = "#2b2620";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-7, -58);
+    ctx.lineTo(-3, -58);
+    ctx.moveTo(3, -58);
+    ctx.lineTo(7, -58);
+    ctx.stroke();
     ctx.restore();
-    drawTemplarShield(ctx, gx, GROUND - 100, 0.8);
+    // escudo cravado no peito
+    drawTemplarShield(ctx, gx + 2, GROUND - 68, 0.85);
+    // linhas de impacto ao redor do escudo
+    ctx.strokeStyle = "rgba(255,240,200,0.8)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const a = -0.5 - i * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(gx + 2 + Math.cos(a) * 34, GROUND - 68 + Math.sin(a) * 34);
+      ctx.lineTo(gx + 2 + Math.cos(a) * 44, GROUND - 68 + Math.sin(a) * 44);
+      ctx.stroke();
+    }
   }
 }
 
@@ -1011,18 +1096,192 @@ function drawMillExit(ctx: CanvasRenderingContext2D, camX: number) {
   ctx.fillStyle = "#9b9081";
   ctx.beginPath();
   ctx.moveTo(x - 20, GROUND);
-  ctx.lineTo(x + 8, GROUND - 200);
-  ctx.lineTo(x + 74, GROUND - 200);
+  ctx.lineTo(x + 8, GROUND - 270);
+  ctx.lineTo(x + 74, GROUND - 270);
   ctx.lineTo(x + 102, GROUND);
   ctx.closePath();
   ctx.fill();
+  ctx.strokeStyle = "#5b5248";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#6d4a3a";
+  ctx.beginPath();
+  ctx.moveTo(x - 2, GROUND - 268);
+  ctx.lineTo(x + 41, GROUND - 325);
+  ctx.lineTo(x + 84, GROUND - 268);
+  ctx.closePath();
+  ctx.fill();
+  ctx.save();
+  ctx.translate(x + 41, GROUND - 282);
+  ctx.rotate(performance.now() / 2200);
+  ctx.fillStyle = "#c8b48a";
+  for (let i = 0; i < 4; i++) {
+    ctx.rotate(Math.PI / 2);
+    ctx.fillRect(-7, -128, 14, 116);
+  }
+  ctx.restore();
   ctx.fillStyle = "#5c3d21";
-  ctx.fillRect(x + 12, GROUND - 110, 60, 110);
-  ctx.fillStyle = "rgba(240,226,192,0.9)";
-  ctx.font = "20px serif";
+  ctx.fillRect(x + 12, GROUND - 130, 60, 130);
+  ctx.strokeStyle = "#2a1c10";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x + 12, GROUND - 130, 60, 130);
+}
+
+function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const rr = i % 2 === 0 ? r : r * 0.45;
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function drawMillInside(
+  ctx: CanvasRenderingContext2D,
+  ball: Ball,
+  millT: number,
+  stars: number,
+  t: number,
+) {
+  // paredes de tábuas
+  ctx.fillStyle = "#5f452a";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 2;
+  for (let px = 0; px <= W; px += 64) {
+    ctx.beginPath();
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, GROUND);
+    ctx.stroke();
+  }
+  // chão
+  ctx.fillStyle = "#7a5c38";
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.fillRect(0, GROUND, W, 5);
+
+  // janela com feixe de luz
+  const wx = W - 230;
+  ctx.fillStyle = "#8fb6d6";
+  ctx.fillRect(wx, 80, 100, 120);
+  const beam = ctx.createLinearGradient(wx, 80, wx - 160, GROUND);
+  beam.addColorStop(0, "rgba(255,230,150,0.28)");
+  beam.addColorStop(1, "rgba(255,230,150,0)");
+  ctx.fillStyle = beam;
+  ctx.beginPath();
+  ctx.moveTo(wx, 80);
+  ctx.lineTo(wx + 100, 80);
+  ctx.lineTo(wx - 40, GROUND);
+  ctx.lineTo(wx - 160, GROUND);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#3a2a18";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(wx, 80, 100, 120);
+  ctx.beginPath();
+  ctx.moveTo(wx + 50, 80);
+  ctx.lineTo(wx + 50, 200);
+  ctx.moveTo(wx, 140);
+  ctx.lineTo(wx + 100, 140);
+  ctx.stroke();
+
+  // eixo vertical com engrenagem girando
+  ctx.fillStyle = "#6b4a2a";
+  ctx.fillRect(160, 130, 22, GROUND - 130);
+  ctx.save();
+  ctx.translate(171, 170);
+  ctx.rotate(t / 40);
+  ctx.fillStyle = "#8a6a3b";
+  ctx.beginPath();
+  ctx.arc(0, 0, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#5b432a";
+  for (let i = 0; i < 8; i++) {
+    ctx.rotate(Math.PI / 4);
+    ctx.fillRect(-7, -58, 14, 26);
+  }
+  ctx.restore();
+
+  // sacos de farinha
+  ctx.fillStyle = "#c9b48a";
+  ctx.strokeStyle = "#8a6a3b";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 3; i++) {
+    const sx = 620 + i * 50;
+    const sy = GROUND - 24 - (i % 2) * 12;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy, 24, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  drawTorch(ctx, 80, 160, t);
+
+  // título e ranking da fase 1
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(0, 36, W, 82);
+  ctx.fillStyle = "#e8c46a";
+  ctx.font = "bold 30px serif";
   ctx.textAlign = "center";
-  ctx.fillText("Fase 2 — Outra parte da aldeia", W / 2, 92);
+  ctx.fillText("Fase 1 concluída!", W / 2, 70);
+  ctx.fillStyle = "#f0e2c0";
+  ctx.font = "20px serif";
+  ctx.fillText("Seu ranking na fase:", W / 2, 100);
   ctx.textAlign = "left";
+
+  const revealEach = 28;
+  for (let i = 0; i < 5; i++) {
+    const sx = W / 2 - 110 + i * 55;
+    const sy = 156;
+    const shown = millT > 36 + i * revealEach;
+    if (shown && i < stars) {
+      const pop = Math.min(1, (millT - (36 + i * revealEach)) / 10);
+      const scale = 0.5 + 0.5 * pop;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.scale(scale, scale);
+      drawStar(ctx, 0, 0, 24);
+      ctx.fillStyle = "#e8c46a";
+      ctx.fill();
+      ctx.strokeStyle = "#8a6a3b";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      drawStar(ctx, sx, sy, 20);
+      ctx.strokeStyle = shown ? "rgba(240,226,192,0.35)" : "rgba(240,226,192,0.18)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // bola em pose de triunfo: pulinhos, brilho e estrelinhas
+  const hop = Math.abs(Math.sin(millT / 9)) * 26;
+  const bx = W / 2;
+  const by = GROUND - ball.r - hop;
+  const glow = ctx.createRadialGradient(bx, by, 4, bx, by, 70);
+  glow.addColorStop(0, "rgba(255,220,120,0.5)");
+  glow.addColorStop(1, "rgba(255,220,120,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(bx, by, 70, 0, Math.PI * 2);
+  ctx.fill();
+  drawBall(ctx, bx, by, ball.r);
+  ctx.fillStyle = "#e8c46a";
+  for (let i = 0; i < 6; i++) {
+    const a = t / 20 + (i * Math.PI) / 3;
+    const rr = 46 + Math.sin(t / 12 + i) * 8;
+    drawStar(ctx, bx + Math.cos(a) * rr, by + Math.sin(a) * rr * 0.7, 6);
+    ctx.fill();
+  }
+
+  if (millT > 36 + 5 * revealEach + 40) {
+    hintText(ctx, "Aperte ESPAÇO para avançar para a próxima fase");
+  }
 }
 
 function drawKnight(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: Ball) {
