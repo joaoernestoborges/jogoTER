@@ -36,7 +36,7 @@ type Screen = "menu" | "game" | "credits";
 const W = 900;
 const H = 520;
 const GROUND = H - 48;
-const VILLAGE_W = W * 4;
+const VILLAGE_W = 4100;
 
 const CHEST = { x: 380, y: GROUND - 54, w: 90, h: 54 };
 const DOOR = { x: 780, y: GROUND - 130, w: 76, h: 130 };
@@ -53,6 +53,10 @@ const MILL_DOOR = { x: MILL_X + 6, y: GROUND - 130, w: 70, h: 130 };
 const F2_SOLDIER1_X = 1200;
 const F2_SOLDIER2_X = 2100;
 const F2_SOLDIER3_X = 3000;
+const F2_MERCHANT_X = 640; // comerciante árabe (fase 2)
+const F2_POTION_HOUSE_X = 1705; // porta da casa da poção (fase 2)
+const POPE_X = 3480; // papa, após os 3 soldados (fase 2)
+const DRAGON_X = 3900; // dragão negro de três cabeças
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("menu");
@@ -124,7 +128,7 @@ const ATTACKS: Attack[] = [
 ];
 
 type EnemyState = "idle" | "charging" | "vulnerable" | "dizzy" | "pinned" | "gone";
-type EnemyKind = "soldier" | "general";
+type EnemyKind = "soldier" | "general" | "dragon";
 type Enemy = {
   kind: EnemyKind;
   x: number;
@@ -137,13 +141,25 @@ type Enemy = {
   dodged: boolean;
   bucket: number;
   shieldThrow: number;
+  heads: number; // cabeças restantes (apenas o dragão)
 };
+
+const DRAGON_HEAD_NAMES = ["Desrespeito", "Discriminação", "Preconceito"];
+
+function dragonHeadName(e: Enemy): string {
+  return e.heads > 0 && e.heads <= 3 ? DRAGON_HEAD_NAMES[e.heads - 1]! : e.name;
+}
 
 function makeEnemy(kind: EnemyKind, x: number): Enemy {
   return {
     kind,
     x,
-    name: kind === "soldier" ? "Soldado Muçulmano" : "General Muçulmano",
+    name:
+      kind === "soldier"
+        ? "Soldado Muçulmano"
+        : kind === "general"
+          ? "General Muçulmano"
+          : "Dragão Negro",
     state: "idle",
     timer: 0,
     atk: ATTACKS[0]!,
@@ -152,6 +168,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
     dodged: false,
     bucket: 0,
     shieldThrow: 0,
+    heads: kind === "dragon" ? 3 : 0,
   };
 }
 
@@ -168,7 +185,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let justPressed: Record<string, boolean> = {};
     const ball: Ball = { x: 120, y: GROUND - 18, vx: 0, vy: 0, r: 18, onGround: true };
 
-    let phase: "intro" | "inside" | "village" | "shieldhouse" | "millinside" | "fase2" = "intro";
+    let phase:
+      "intro" | "inside" | "village" | "shieldhouse" | "millinside" | "fase2" | "potionhouse" =
+      "intro";
     let introT = 0;
     let chestOpen = 0;
     let camX = 0;
@@ -176,6 +195,8 @@ function Game({ onDeath }: { onDeath: () => void }) {
 
     let hearts = 5;
     let hasShield = false;
+    let hasPotion = false;
+    let hasLight = false;
     let hitFlash = 0;
     let dodgeFlash = 0;
     let dead = false;
@@ -183,6 +204,8 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let bannerT = 0;
     let millT = 0;
     let millStars = 5;
+    let victory = false;
+    let victoryT = 0;
 
     const CHARGE = 120; // 2s para carregar o golpe
     const VULN = 240; // 4s vulnerável
@@ -197,8 +220,11 @@ function Game({ onDeath }: { onDeath: () => void }) {
       makeEnemy("soldier", F2_SOLDIER1_X),
       makeEnemy("soldier", F2_SOLDIER2_X),
       makeEnemy("soldier", F2_SOLDIER3_X),
+      makeEnemy("dragon", DRAGON_X),
     ];
     const general = villageEnemies[2]!;
+    const soldiersDefeated = () =>
+      fase2Enemies.filter((en) => en.kind === "soldier").every((en) => en.state === "gone");
     let enemies = villageEnemies;
     let current = 0;
 
@@ -210,7 +236,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
 
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if ([" ", "a", "d", "e", "q", "w", "arrowleft", "arrowright", "arrowup"].includes(k))
+      if ([" ", "a", "d", "e", "q", "r", "w", "arrowleft", "arrowright", "arrowup"].includes(k))
         e.preventDefault();
       if (!keys[k]) justPressed[k] = true;
       keys[k] = true;
@@ -377,7 +403,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
           e.hits = 0;
           e.resolved = false;
           e.atk = pickAttack();
-          say(e.name + " apareceu!");
+          say(e.kind === "dragon" ? "O Dragão Negro apareceu!" : e.name + " apareceu!");
         }
         return;
       }
@@ -397,7 +423,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
         }
         if (e.timer >= CHARGE) {
           if (e.dodged) dodgeFlash = 30;
-          else takeHit(e.kind === "general" ? 2 : 1);
+          else takeHit(e.kind === "dragon" ? 3 : e.kind === "general" ? 2 : 1);
           e.hits++;
           e.timer = 0;
           e.resolved = false;
@@ -414,6 +440,26 @@ function Game({ onDeath }: { onDeath: () => void }) {
             e.state = "dizzy";
             e.timer = 0;
             e.bucket = 40;
+          } else if (e.kind === "dragon") {
+            if (hasLight) {
+              e.heads -= 1;
+              dodgeFlash = 30;
+              if (e.heads <= 0) {
+                e.state = "gone";
+                victory = true;
+                victoryT = 0;
+              } else {
+                e.state = "charging";
+                e.timer = 0;
+                e.hits = 0;
+                e.resolved = false;
+                e.dodged = false;
+                e.atk = pickAttack();
+                say(`Cabeça derrotada! Faltam ${e.heads}.`);
+              }
+            } else {
+              say("Sem a Luz Brilhante você não pode derrotá-lo!");
+            }
           } else if (hasShield) {
             e.state = "pinned";
             e.timer = 0;
@@ -436,8 +482,8 @@ function Game({ onDeath }: { onDeath: () => void }) {
         if (e.timer >= DIZZY) {
           e.state = "gone";
           current = Math.min(current + 1, enemies.length - 1);
-          if (enemies === fase2Enemies && fase2Enemies.every((en) => en.state === "gone")) {
-            say("Aldeia defendida! Você venceu!");
+          if (enemies === fase2Enemies && soldiersDefeated()) {
+            say("Soldados derrotados! Procure o Papa →");
           } else {
             say("Inimigo derrotado!");
           }
@@ -453,6 +499,12 @@ function Game({ onDeath }: { onDeath: () => void }) {
     const step = () => {
       t += 1;
       if (bannerT > 0) bannerT--;
+
+      if (justPressed["r"] && hasPotion) {
+        hearts = Math.min(5, hearts + 3);
+        hasPotion = false;
+        say("A poção recuperou 3 corações!");
+      }
 
       if (phase === "intro") {
         introT += 1;
@@ -518,6 +570,35 @@ function Game({ onDeath }: { onDeath: () => void }) {
           ball.vx = 0;
         }
         if (hasShield) hintText(ctx, "Volte pela porta à esquerda ←");
+      } else if (phase === "potionhouse") {
+        physics(W, false);
+        // pedestal sólido: dá para subir pulando em cima dele
+        if (
+          ball.vy >= 0 &&
+          ball.x + ball.r > 410 &&
+          ball.x - ball.r < 510 &&
+          ball.y + ball.r > GROUND - 68 &&
+          ball.y + ball.r < GROUND
+        ) {
+          ball.y = GROUND - 68 - ball.r;
+          ball.vy = 0;
+          ball.onGround = true;
+        }
+        drawPotionHouse(ctx, ball, t, hasPotion);
+        if (!hasPotion && Math.abs(ball.x - 460) < 60 && Math.abs(ball.y - (GROUND - 120)) < 60) {
+          hasPotion = true;
+          say("Poção obtida! Aperte R para beber");
+        }
+        if (!hasPotion && Math.abs(ball.x - 460) < 70) {
+          hintText(ctx, "Pule na poção para pegá-la!");
+        }
+        if (ball.x < 90) {
+          phase = "fase2";
+          fade = 1;
+          ball.x = F2_POTION_HOUSE_X + 60;
+          ball.vx = 0;
+        }
+        if (hasPotion) hintText(ctx, "Volte pela porta à esquerda ←");
       } else if (phase === "millinside") {
         millT++;
         drawMillInside(ctx, ball, millT, millStars, t);
@@ -546,7 +627,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
           drawShieldHouse2D(ctx, camX, t);
           drawMill(ctx, camX, general);
           for (const en of enemies) drawEnemy(ctx, camX, t, en);
-          drawHud(ctx, hearts, hasShield, enemies[current]!);
+          drawHud(ctx, hearts, hasShield, enemies[current]!, hasLight, hasPotion);
 
           // entrar na casa do escudo
           if (Math.abs(ball.x - SHIELD_HOUSE_X) < 40 && ball.onGround) {
@@ -577,8 +658,36 @@ function Game({ onDeath }: { onDeath: () => void }) {
           }
         } else {
           drawMillExit(ctx, camX);
+          drawPotionHouse2D(ctx, camX, t);
+          drawMerchant(ctx, camX, t, ball);
+          if (soldiersDefeated()) drawPope(ctx, camX, t, ball);
           for (const en of enemies) drawEnemy(ctx, camX, t, en);
-          drawHud(ctx, hearts, hasShield, enemies[current] ?? null);
+          drawHud(ctx, hearts, hasShield, enemies[current] ?? null, hasLight, hasPotion);
+
+          // o papa entrega a luz brilhante
+          if (soldiersDefeated() && !hasLight && Math.abs(ball.x - POPE_X) < 70 && ball.onGround) {
+            hasLight = true;
+            say("O Papa te entregou a Luz Brilhante!");
+          }
+
+          // entrar na casa da poção
+          if (Math.abs(ball.x - F2_POTION_HOUSE_X) < 40 && ball.onGround) {
+            hintText(ctx, "Aperte ESPAÇO para entrar na casa da poção");
+            if (justPressed[" "]) {
+              phase = "potionhouse";
+              fade = 1;
+              ball.x = 180;
+              ball.y = GROUND - ball.r;
+              ball.vx = 0;
+              ball.vy = 0;
+            }
+          }
+
+          if (victory) {
+            victoryT++;
+            drawVictory(ctx, victoryT);
+            if (victoryT > 90 && justPressed[" "]) onDeath();
+          }
         }
 
         if (hitFlash > 0) {
@@ -992,7 +1101,7 @@ function drawVillage(
 
   const seed = fase2 ? 5 : 0;
   for (let i = 0; i < 14; i++) {
-    if (!fase2 && i === 4) continue; // vaga ocupada pela casa do escudo
+    if (fase2 ? i === 6 : i === 4) continue; // vagas da casa do escudo (fase 1) e da poção (fase 2)
     const bx = 120 + i * 250;
     const bh2 = 140 + (((i + seed) * 37) % 60);
     drawVillageHouse(ctx, bx, bh2, t, i);
@@ -1054,10 +1163,32 @@ function speech(ctx: CanvasRenderingContext2D, x: number, y: number, text: strin
 function drawShieldHouse2D(ctx: CanvasRenderingContext2D, camX: number, t: number) {
   const x = SHIELD_HOUSE_X - camX;
   if (x < -200 || x > W + 200) return;
-  // mesma casa das do fundo; a opção de entrar aparece ao passar pela porta
+  // mesma casa das do fundo; a cruz templária na fachada diferencia das outras
   ctx.save();
   ctx.translate(-camX, 0);
   drawVillageHouse(ctx, SHIELD_HOUSE_X - 85, 168, t, 4);
+  drawHouseCross(ctx, SHIELD_HOUSE_X, GROUND - 140);
+  ctx.restore();
+}
+
+function drawHouseCross(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+  ctx.fillStyle = "#b3352f";
+  ctx.fillRect(cx - 5, cy - 24, 10, 48);
+  ctx.fillRect(cx - 19, cy - 12, 38, 10);
+  ctx.strokeStyle = "#7a1f1c";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx - 5, cy - 24, 10, 48);
+  ctx.strokeRect(cx - 19, cy - 12, 38, 10);
+}
+
+function drawPotionHouse2D(ctx: CanvasRenderingContext2D, camX: number, t: number) {
+  const x = F2_POTION_HOUSE_X - camX;
+  if (x < -200 || x > W + 200) return;
+  // casa idêntica à do escudo, também com a cruz templária
+  ctx.save();
+  ctx.translate(-camX, 0);
+  drawVillageHouse(ctx, F2_POTION_HOUSE_X - 85, 168, t, 6);
+  drawHouseCross(ctx, F2_POTION_HOUSE_X, GROUND - 140);
   ctx.restore();
 }
 
@@ -1429,12 +1560,390 @@ function drawKnight(ctx: CanvasRenderingContext2D, camX: number, t: number, ball
 
   ctx.restore();
 
+  // nome
+  const label = "Cavaleiro Cristão";
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.font = "bold 15px serif";
+  const nw = ctx.measureText(label).width + 16;
+  ctx.fillRect(x - nw / 2, base - 168, nw, 22);
+  ctx.fillStyle = "#f0e2c0";
+  ctx.textAlign = "center";
+  ctx.fillText(label, x, base - 152);
+  ctx.textAlign = "left";
+
   if (Math.abs(ball.x - KNIGHT_X) < 260) {
     speech(ctx, x, base - 100, "Nossa vila está sendo atacada!");
   }
 }
 
+function drawMerchant(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: Ball) {
+  const x = F2_MERCHANT_X - camX;
+  if (x < -220 || x > W + 220) return;
+  const base = GROUND;
+  const bob = Math.sin(t / 30) * 2;
+
+  // tapete com mercadorias
+  ctx.fillStyle = "#8c2b2b";
+  ctx.fillRect(x - 80, base - 6, 160, 8);
+  ctx.fillStyle = "#c9a24a";
+  for (const px of [-52, 0, 52]) {
+    ctx.beginPath();
+    ctx.moveTo(x + px - 12, base - 6);
+    ctx.lineTo(x + px - 6, base - 34);
+    ctx.lineTo(x + px + 6, base - 34);
+    ctx.lineTo(x + px + 12, base - 6);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(x, base + bob);
+
+  // túnica
+  ctx.fillStyle = "#6d5a3c";
+  ctx.beginPath();
+  ctx.moveTo(-14, -70);
+  ctx.lineTo(-22, 0);
+  ctx.lineTo(22, 0);
+  ctx.lineTo(14, -70);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#c9a24a";
+  ctx.fillRect(-16, -44, 32, 6);
+
+  // cabeça, barba e turbante
+  ctx.fillStyle = "#c8a07a";
+  ctx.beginPath();
+  ctx.arc(0, -78, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#3a2a18";
+  ctx.beginPath();
+  ctx.moveTo(-9, -76);
+  ctx.quadraticCurveTo(0, -56, 9, -76);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#e8e2d2";
+  ctx.beginPath();
+  ctx.ellipse(0, -88, 14, 8, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.fillStyle = "#c9a24a";
+  ctx.beginPath();
+  ctx.arc(8, -90, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  if (Math.abs(ball.x - F2_MERCHANT_X) < 260) {
+    speech(ctx, x, base - 110, "Este lugar está uma baderna!");
+  }
+}
+
+function drawPope(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: Ball) {
+  const x = POPE_X - camX;
+  if (x < -220 || x > W + 220) return;
+  const base = GROUND;
+  const bob = Math.sin(t / 30) * 2;
+
+  ctx.save();
+  ctx.translate(x, base + bob);
+
+  // bastão com cruz
+  ctx.fillStyle = "#8a6a3b";
+  ctx.fillRect(24, -110, 6, 110);
+  ctx.fillStyle = "#e8c46a";
+  ctx.fillRect(21, -122, 12, 4);
+  ctx.fillRect(25, -126, 4, 12);
+
+  // túnica branca com estola dourada
+  ctx.fillStyle = "#f0ede4";
+  ctx.beginPath();
+  ctx.moveTo(-16, -74);
+  ctx.lineTo(-24, 0);
+  ctx.lineTo(24, 0);
+  ctx.lineTo(16, -74);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#d8d2c2";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#e8c46a";
+  ctx.fillRect(-6, -72, 5, 70);
+  ctx.fillRect(1, -72, 5, 70);
+  ctx.fillRect(-8, -70, 16, 6);
+
+  // cabeça e tiara (tripla coroa)
+  ctx.fillStyle = "#e8c4a0";
+  ctx.beginPath();
+  ctx.arc(0, -82, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e8c46a";
+  ctx.beginPath();
+  ctx.ellipse(0, -92, 13, 5, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, -97, 11, 4, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, -102, 9, 4, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.restore();
+
+  if (Math.abs(ball.x - POPE_X) < 260) {
+    speech(ctx, x, base - 140, "Cuidado com o monstro!");
+  }
+}
+
+function drawDragon(ctx: CanvasRenderingContext2D, camX: number, t: number, e: Enemy) {
+  if (e.state === "gone") return;
+  const x = e.x - camX;
+  if (x < -340 || x > W + 340) return;
+  const base = GROUND;
+  const charging = e.state === "charging";
+  const vulnerable = e.state === "vulnerable";
+  const bob = Math.sin(t / 26) * 5;
+  const flap = Math.sin(t / 12) * 24;
+
+  ctx.save();
+  ctx.translate(x, base + bob);
+
+  // asas
+  ctx.fillStyle = "#15151c";
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.scale(s, 1);
+    ctx.beginPath();
+    ctx.moveTo(40, -110);
+    ctx.lineTo(170, -200 + flap);
+    ctx.lineTo(150, -100);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // cauda
+  ctx.strokeStyle = "#1d1d26";
+  ctx.lineWidth = 16;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-55, -70);
+  ctx.quadraticCurveTo(-150, -60, -180, -120);
+  ctx.stroke();
+  ctx.fillStyle = "#1d1d26";
+  ctx.beginPath();
+  ctx.moveTo(-180, -120);
+  ctx.lineTo(-202, -138);
+  ctx.lineTo(-176, -134);
+  ctx.closePath();
+  ctx.fill();
+  ctx.lineCap = "butt";
+
+  // pernas com garras
+  ctx.fillStyle = "#1d1d26";
+  ctx.fillRect(-46, -42, 24, 42);
+  ctx.fillRect(22, -42, 24, 42);
+  ctx.fillStyle = "#dfe6ec";
+  for (const lx of [-46, -32, 22, 36]) ctx.fillRect(lx, -6, 8, 6);
+
+  // corpo e barriga
+  ctx.fillStyle = "#1d1d26";
+  ctx.beginPath();
+  ctx.ellipse(0, -86, 72, 54, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#2e2e3c";
+  ctx.beginPath();
+  ctx.ellipse(0, -64, 44, 26, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // cabeças conforme restam
+  const neckOffsets = e.heads === 3 ? [-64, 0, 64] : e.heads === 2 ? [-38, 38] : [0];
+  for (const nx of neckOffsets) {
+    ctx.strokeStyle = "#1d1d26";
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.moveTo(nx / 2, -110);
+    ctx.quadraticCurveTo(nx, -160, nx, -196);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(nx, -204);
+    if (nx < 0) ctx.rotate(-0.25);
+    if (nx > 0) ctx.rotate(0.25);
+    ctx.fillStyle = "#1d1d26";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 24, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(6, 2);
+    ctx.lineTo(30, 10 + (charging ? 6 : 2));
+    ctx.lineTo(6, 10);
+    ctx.closePath();
+    ctx.fill();
+    if (charging) {
+      ctx.fillStyle = e.atk.glow + "0.9)";
+      ctx.beginPath();
+      ctx.ellipse(38, 8, 16, 8, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = vulnerable ? "#ffd24a" : "#ff4040";
+    ctx.beginPath();
+    ctx.arc(4, -6, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#dfe6ec";
+    ctx.beginPath();
+    ctx.moveTo(-8, -12);
+    ctx.lineTo(-14, -26);
+    ctx.lineTo(-4, -14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // aura do golpe ou brilho de vulnerável
+  if (charging || vulnerable) {
+    const p = 0.3 + 0.3 * Math.sin(t / 6);
+    const col = charging ? e.atk.glow : "rgba(255,220,120,";
+    const g = ctx.createRadialGradient(0, -150, 30, 0, -150, 170);
+    g.addColorStop(0, col + p.toFixed(2) + ")");
+    g.addColorStop(1, col + "0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, -150, 170, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // nome da cabeça atual
+  const label = dragonHeadName(e);
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.font = "bold 16px serif";
+  const nw = ctx.measureText(label).width + 16;
+  ctx.fillRect(x - nw / 2, base - 268, nw, 24);
+  ctx.fillStyle = "#f0e2c0";
+  ctx.textAlign = "center";
+  ctx.fillText(label, x, base - 251);
+  ctx.textAlign = "left";
+}
+
+function drawVictory(ctx: CanvasRenderingContext2D, victoryT: number) {
+  ctx.fillStyle = "rgba(10,5,0,0.78)";
+  ctx.fillRect(0, 0, W, H);
+
+  const g = ctx.createRadialGradient(W / 2, 150, 20, W / 2, 150, 260);
+  g.addColorStop(0, "rgba(255,230,150,0.35)");
+  g.addColorStop(1, "rgba(255,230,150,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#e8c46a";
+  ctx.font = "bold 44px serif";
+  ctx.fillText("Você venceu!", W / 2, 150);
+  ctx.fillStyle = "#f0e2c0";
+  ctx.font = "22px serif";
+  ctx.fillText(
+    "O dragão do Preconceito, da Discriminação e do Desrespeito foi derrotado!",
+    W / 2,
+    200,
+  );
+  ctx.fillText("Multirreligiosidade e tolerância triunfaram!", W / 2, 232);
+
+  for (let i = 0; i < 5; i++) {
+    const sx = W / 2 - 110 + i * 55;
+    const pop = Math.min(1, Math.max(0, (victoryT - 20 - i * 10) / 12));
+    drawStar(ctx, sx, 280, 22 * (0.5 + 0.5 * pop));
+    ctx.fillStyle = `rgba(232,196,106,${0.3 + 0.7 * pop})`;
+    ctx.fill();
+    ctx.strokeStyle = "#8a6a3b";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (victoryT > 90) {
+    ctx.fillStyle = "#e8c46a";
+    ctx.font = "bold 20px serif";
+    ctx.fillText("Aperte ESPAÇO para voltar ao menu", W / 2, 360);
+  }
+  ctx.textAlign = "left";
+}
+
+function drawPotion(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const g = ctx.createRadialGradient(x, y, 4, x, y, 90);
+  g.addColorStop(0, "rgba(255,90,120,0.5)");
+  g.addColorStop(1, "rgba(255,90,120,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, 90, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(230,240,250,0.5)";
+  ctx.fillRect(x - 4, y - 18, 8, 12);
+  ctx.fillStyle = "#8a6a3b";
+  ctx.fillRect(x - 5, y - 22, 10, 6);
+  ctx.fillStyle = "#d13a56";
+  ctx.beginPath();
+  ctx.arc(x, y + 7, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.7)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y + 7, 15, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeRect(x - 4, y - 18, 8, 12);
+}
+
+function drawPotionIcon(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  ctx.fillStyle = "rgba(230,240,250,0.6)";
+  ctx.fillRect(x - 3, y - 12, 6, 8);
+  ctx.fillStyle = "#8a6a3b";
+  ctx.fillRect(x - 4, y - 15, 8, 4);
+  ctx.fillStyle = "#d13a56";
+  ctx.beginPath();
+  ctx.arc(x, y + 4, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y + 4, 10, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawPotionHouse(ctx: CanvasRenderingContext2D, ball: Ball, t: number, taken: boolean) {
+  stoneRoom(ctx);
+  drawTorch(ctx, 220, 140, t);
+  drawTorch(ctx, 700, 140, t);
+
+  // porta de saída à esquerda
+  ctx.fillStyle = "#6b4a2a";
+  ctx.fillRect(20, GROUND - 130, 70, 130);
+  ctx.strokeStyle = "#2a1c10";
+  ctx.lineWidth = 5;
+  ctx.strokeRect(20, GROUND - 130, 70, 130);
+
+  // pedestal
+  ctx.fillStyle = "#7a736a";
+  ctx.fillRect(420, GROUND - 60, 80, 60);
+  ctx.fillStyle = "#948c81";
+  ctx.fillRect(410, GROUND - 68, 100, 12);
+
+  if (!taken) drawPotion(ctx, 460, GROUND - 120 + Math.sin(t / 25) * 5);
+
+  drawBall(ctx, ball.x, ball.y, ball.r);
+
+  ctx.fillStyle = "rgba(240,226,192,0.85)";
+  ctx.font = "20px serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Casa da Poção", W / 2, 54);
+  ctx.textAlign = "left";
+}
+
 function drawEnemy(ctx: CanvasRenderingContext2D, camX: number, t: number, e: Enemy) {
+  if (e.kind === "dragon") {
+    drawDragon(ctx, camX, t, e);
+    return;
+  }
   if (e.state === "idle" || e.state === "gone" || e.state === "pinned") return;
   const x = e.x - camX;
   if (x < -220 || x > W + 220) return;
@@ -1566,6 +2075,8 @@ function drawHud(
   hearts: number,
   hasShield: boolean,
   e: Enemy | null,
+  hasLight = false,
+  hasPotion = false,
 ) {
   for (let i = 0; i < 5; i++) {
     const hx = 28 + i * 30;
@@ -1582,6 +2093,16 @@ function drawHud(
   }
 
   if (hasShield) drawTemplarShield(ctx, 210, 34, 0.5);
+  if (hasPotion) drawPotionIcon(ctx, 252, 30);
+  if (hasLight) {
+    const g = ctx.createRadialGradient(296, 28, 2, 296, 28, 24);
+    g.addColorStop(0, "rgba(255,240,180,0.95)");
+    g.addColorStop(1, "rgba(255,240,180,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(296, 28, 24, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   if (!e) return;
 
@@ -1617,11 +2138,15 @@ function drawHud(
     ctx.font = "bold 20px serif";
     ctx.textAlign = "center";
     ctx.fillText(
-      e.kind === "general"
-        ? hasShield
-          ? "Vulnerável! ESPAÇO para arremessar o escudo"
-          : "Vulnerável! Você precisa do escudo templário"
-        : "Vulnerável! Aperte ESPAÇO para o balde",
+      e.kind === "dragon"
+        ? hasLight
+          ? "Vulnerável! ESPAÇO para usar a Luz Brilhante"
+          : "Vulnerável! Você precisa da Luz Brilhante"
+        : e.kind === "general"
+          ? hasShield
+            ? "Vulnerável! ESPAÇO para arremessar o escudo"
+            : "Vulnerável! Você precisa do escudo templário"
+          : "Vulnerável! Aperte ESPAÇO para o balde",
       W / 2,
       62,
     );

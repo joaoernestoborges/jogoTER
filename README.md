@@ -18,13 +18,17 @@ diferenças no mundo atual.
 | `A` / `D`       | Mover para a esquerda / direita                          |
 | `Espaço`        | Pular / agir (abrir baú, sair de casa, pegar o escudo)   |
 | `E` / `W` / `Q` | Esquiva combinada (cores) durante os golpes dos inimigos |
+| `R`             | Beber a poção (recupera 3 corações, uma vez por jogo)    |
 
 No celular: deslize o dedo para andar, toque com 1 dedo para pular/agir, toque
 com 2 dedos para `Q`, 3 dedos para `W` e 4 dedos para `E`.
 
 Percurso: interior da casa → aldeia medieval → casa do escudo → moinho (ranking
 com estrelas conforme os corações) → fase 2. Abra o baú, pegue o escudo
-templário, enfrente os soldados e o general e defenda a aldeia na fase 2.
+templário, enfrente os soldados e o general, e na fase 2 derrote os três
+soldados, ganhe a Luz Brilhante do Papa e a poção da casa com a cruz, até
+vencer o dragão negro de três cabeças — Preconceito, Discriminação e
+Desrespeito.
 
 ## Rodando o projeto
 
@@ -45,7 +49,7 @@ Não há testes automatizados nem CI neste projeto.
 ## Estrutura do código
 
 - `src/routes/index.tsx` — todo o jogo: menu, créditos e o loop de canvas
-  (900×520, aldeia com rolagem de 4× a largura da tela).
+  (900×520, aldeia com rolagem de mais de 4× a largura da tela).
 - `src/routes/` — rotas do TanStack Router (baseado em arquivos).
 - `src/components/ui/` — componentes shadcn/ui.
 - `src/styles.css` — tema Tailwind v4 (via CSS, sem arquivo de config).
