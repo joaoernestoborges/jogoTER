@@ -19,9 +19,11 @@ diferenças no mundo atual.
 | `Espaço`        | Pular / agir (abrir baú, sair de casa, pegar o escudo)   |
 | `E` / `W` / `Q` | Esquiva combinada (cores) durante os golpes dos inimigos |
 | `R`             | Beber a poção (recupera 3 corações, uma vez por jogo)    |
+| `S`             | Conversar com NPCs (caixa de diálogo na parte inferior)  |
 
 No celular: deslize o dedo para andar, toque com 1 dedo para pular/agir, toque
-com 2 dedos para `Q`, 3 dedos para `W` e 4 dedos para `E`.
+com 2 dedos para `Q`, 3 dedos para `W` e 4 dedos para `E`; perto de um NPC, o
+toque também inicia/avança o diálogo.
 
 Percurso: interior da casa → aldeia medieval → casa do escudo → moinho (ranking
 com estrelas conforme os corações) → fase 2. Abra o baú, pegue o escudo

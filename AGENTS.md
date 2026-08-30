@@ -97,10 +97,13 @@ and a full canvas game loop inside a single `useEffect` (fixed 900×520 canvas,
   `idle → charging → vulnerable → dizzy → pinned → gone`, timed in frames
   (60 fps assumptions: `CHARGE=120`, `VULN=240`, `DIZZY=180`).
 - Controls: A/D move, Space jump/act, E/W/Q color-matched dodge during enemy
-  strikes. Touch (mobile): 1-finger swipe moves, 1-finger tap jumps/acts,
-  2/3/4-finger taps map to Q/W/E — implemented in the same `useEffect` as the
-  keyboard listeners in `src/routes/index.tsx`. World positions are constants
-  (`KNIGHT_X`, `SOLDIER1_X`, `GENERAL_X`, `MILL_X`, …) at the top of the file.
+  strikes, R drinks the potion, S talks to NPCs (linear dialog box at the
+  bottom; `DIALOGUES` at the top of the file holds each NPC's lines and the
+  gameplay freezes while a dialogue is open). Touch (mobile): 1-finger swipe
+  moves, 1-finger tap jumps/acts, 2/3/4-finger taps map to Q/W/E — implemented
+  in the same `useEffect` as the keyboard listeners in `src/routes/index.tsx`.
+  World positions are constants (`KNIGHT_X`, `SOLDIER1_X`, `GENERAL_X`,
+  `MILL_X`, …) at the top of the file.
 
 ## Conventions
 

@@ -31,6 +31,35 @@ const CREDITS = [
   "Jo\u00e3o Ernesto Martins Borges",
 ];
 
+const DIALOGUES = {
+  knight: {
+    name: "Cavaleiro Cristão",
+    lines: [
+      "Nossa vila está sendo atacada!",
+      "Vá até a casa com a cruz vermelha e pegue o escudo templário.",
+      "Com ele você poderá prender o general na parede do moinho!",
+    ],
+  },
+  merchant: {
+    name: "Comerciante Árabe",
+    lines: [
+      "Este lugar está uma baderna!",
+      "Soldados por todo lado... cuide-se por aí, forasteiro.",
+    ],
+  },
+  pope: {
+    name: "Papa",
+    lines: [
+      "Cuidado com o monstro!",
+      "O dragão negro se alimenta do Preconceito, da Discriminação e do Desrespeito.",
+      "Leve esta Luz Brilhante e traga a paz de volta à aldeia!",
+    ],
+  },
+} as const;
+
+type DlgNpc = keyof typeof DIALOGUES;
+type Dlg = { npc: DlgNpc; idx: number; chars: number };
+
 type Screen = "menu" | "game" | "credits";
 
 const W = 900;
@@ -206,6 +235,30 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let millStars = 5;
     let victory = false;
     let victoryT = 0;
+    let dlg: Dlg | null = null;
+
+    const startDlg = (npc: DlgNpc) => {
+      dlg = { npc, idx: 0, chars: 0 };
+    };
+
+    const advanceDlg = () => {
+      const d = dlg;
+      if (!d) return;
+      const full = DIALOGUES[d.npc].lines[d.idx]!;
+      if (d.chars < full.length) {
+        d.chars = full.length;
+        return;
+      }
+      d.idx += 1;
+      d.chars = 0;
+      if (d.idx >= DIALOGUES[d.npc].lines.length) {
+        if (d.npc === "pope" && !hasLight) {
+          hasLight = true;
+          say("Você recebeu a Luz Brilhante!");
+        }
+        dlg = null;
+      }
+    };
 
     const CHARGE = 120; // 2s para carregar o golpe
     const VULN = 240; // 4s vulnerável
@@ -236,7 +289,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
 
     const down = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
-      if ([" ", "a", "d", "e", "q", "r", "w", "arrowleft", "arrowright", "arrowup"].includes(k))
+      if (
+        [" ", "a", "d", "e", "q", "r", "s", "w", "arrowleft", "arrowright", "arrowup"].includes(k)
+      )
         e.preventDefault();
       if (!keys[k]) justPressed[k] = true;
       keys[k] = true;
@@ -397,7 +452,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
       if (e.shieldThrow > 0) e.shieldThrow++;
 
       if (e.state === "idle") {
-        if (ball.x > e.x - 420) {
+        // o dragão só se aproxima depois do Papa (gatilho mais curto)
+        const trig = e.kind === "dragon" ? 300 : 420;
+        if (ball.x > e.x - trig) {
           e.state = "charging";
           e.timer = 0;
           e.hits = 0;
@@ -615,9 +672,26 @@ function Game({ onDeath }: { onDeath: () => void }) {
         }
       } else if (phase === "village" || phase === "fase2") {
         const e = activeEnemy();
-        const frozen = !!e && (e.state === "charging" || e.state === "vulnerable");
+        const inDlg = !!dlg;
+        const frozen = inDlg || (!!e && (e.state === "charging" || e.state === "vulnerable"));
         if (!dead) physics(VILLAGE_W, frozen);
-        if (phase === "village" || phase === "fase2") combat();
+        if (!inDlg) combat();
+
+        // diálogo com NPCs: aperte S perto deles
+        if (dlg) {
+          dlg.chars += 1;
+          if (justPressed["s"] || justPressed[" "]) advanceDlg();
+        } else {
+          let npc: DlgNpc | null = null;
+          if (phase === "village" && Math.abs(ball.x - KNIGHT_X) < 120) npc = "knight";
+          if (phase === "fase2" && Math.abs(ball.x - F2_MERCHANT_X) < 120) npc = "merchant";
+          if (phase === "fase2" && soldiersDefeated() && Math.abs(ball.x - POPE_X) < 120)
+            npc = "pope";
+          if (npc) {
+            hintText(ctx, "Aperte S (ou toque) para conversar");
+            if (justPressed["s"] || justPressed[" "]) startDlg(npc);
+          }
+        }
 
         camX = Math.max(0, Math.min(VILLAGE_W - W, ball.x - W / 2));
         drawVillage(ctx, ball, t, camX, phase === "fase2");
@@ -627,10 +701,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
           drawShieldHouse2D(ctx, camX, t);
           drawMill(ctx, camX, general);
           for (const en of enemies) drawEnemy(ctx, camX, t, en);
-          drawHud(ctx, hearts, hasShield, enemies[current]!, hasLight, hasPotion);
 
-          // entrar na casa do escudo
-          if (Math.abs(ball.x - SHIELD_HOUSE_X) < 40 && ball.onGround) {
+          // entrar na casa do escudo (dá para entrar antes de enfrentar os soldados)
+          if (!dlg && Math.abs(ball.x - SHIELD_HOUSE_X) < 55) {
             hintText(ctx, "Aperte ESPAÇO para entrar na casa");
             if (justPressed[" "]) {
               phase = "shieldhouse";
@@ -643,7 +716,11 @@ function Game({ onDeath }: { onDeath: () => void }) {
           }
 
           // entrar no moinho
-          if (general.state === "gone" && Math.abs(ball.x - (MILL_DOOR.x + MILL_DOOR.w / 2)) < 50) {
+          if (
+            !dlg &&
+            general.state === "gone" &&
+            Math.abs(ball.x - (MILL_DOOR.x + MILL_DOOR.w / 2)) < 50
+          ) {
             hintText(ctx, "Aperte ESPAÇO para entrar no moinho");
             if (justPressed[" "]) {
               phase = "millinside";
@@ -662,16 +739,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
           drawMerchant(ctx, camX, t, ball);
           if (soldiersDefeated()) drawPope(ctx, camX, t, ball);
           for (const en of enemies) drawEnemy(ctx, camX, t, en);
-          drawHud(ctx, hearts, hasShield, enemies[current] ?? null, hasLight, hasPotion);
-
-          // o papa entrega a luz brilhante
-          if (soldiersDefeated() && !hasLight && Math.abs(ball.x - POPE_X) < 70 && ball.onGround) {
-            hasLight = true;
-            say("O Papa te entregou a Luz Brilhante!");
-          }
 
           // entrar na casa da poção
-          if (Math.abs(ball.x - F2_POTION_HOUSE_X) < 40 && ball.onGround) {
+          if (!dlg && Math.abs(ball.x - F2_POTION_HOUSE_X) < 55) {
             hintText(ctx, "Aperte ESPAÇO para entrar na casa da poção");
             if (justPressed[" "]) {
               phase = "potionhouse";
@@ -689,6 +759,18 @@ function Game({ onDeath }: { onDeath: () => void }) {
             if (victoryT > 90 && justPressed[" "]) onDeath();
           }
         }
+
+        // bola sempre visível na frente das casas e NPCs
+        drawBall(ctx, ball.x - camX, ball.y, ball.r);
+        drawHud(
+          ctx,
+          hearts,
+          hasShield,
+          phase === "village" ? enemies[current]! : (enemies[current] ?? null),
+          hasLight,
+          hasPotion,
+        );
+        if (dlg) drawDialog(ctx, dlg);
 
         if (hitFlash > 0) {
           ctx.fillStyle = `rgba(180,20,20,${(hitFlash / 24) * 0.4})`;
@@ -1129,7 +1211,6 @@ function drawVillage(
     ctx.fillRect(x, GROUND + 20, 34, 6);
   }
 
-  drawBall(ctx, ball.x, ball.y, ball.r);
   ctx.restore();
 
   ctx.fillStyle = "rgba(0,0,0,0.35)";
@@ -1138,26 +1219,72 @@ function drawVillage(
   ctx.fillRect(20, 50, 200 * (ball.x / VILLAGE_W), 10);
 }
 
-function speech(ctx: CanvasRenderingContext2D, x: number, y: number, text: string) {
-  ctx.font = "18px serif";
-  const w = ctx.measureText(text).width + 28;
-  ctx.fillStyle = "rgba(255,250,235,0.95)";
+function drawTalkPrompt(ctx: CanvasRenderingContext2D, x: number, y: number, t: number) {
+  const bob = Math.sin(t / 15) * 3;
+  ctx.fillStyle = "#e8c46a";
   ctx.strokeStyle = "#4a3520";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.roundRect(x - w / 2, y - 44, w, 38, 10);
+  ctx.arc(x, y + bob, 12, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(x - 8, y - 8);
-  ctx.lineTo(x + 8, y - 8);
-  ctx.lineTo(x, y + 4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#2a1c10";
+  ctx.fillStyle = "#241b13";
+  ctx.font = "bold 14px serif";
   ctx.textAlign = "center";
-  ctx.fillText(text, x, y - 19);
+  ctx.fillText("S", x, y + bob + 5);
   ctx.textAlign = "left";
+}
+
+function drawDialog(ctx: CanvasRenderingContext2D, dlg: Dlg) {
+  const d = DIALOGUES[dlg.npc];
+  const full = d.lines[dlg.idx]!;
+  const shown = full.slice(0, Math.floor(dlg.chars));
+
+  const bx = 40;
+  const bw = W - 80;
+  const bh = 88;
+  const by = H - bh - 12;
+  ctx.fillStyle = "rgba(20,14,8,0.92)";
+  ctx.strokeStyle = "#e8c46a";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, bw, bh, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#e8c46a";
+  ctx.font = "bold 18px serif";
+  ctx.fillText(d.name, bx + 20, by + 28);
+
+  ctx.fillStyle = "#f0e2c0";
+  ctx.font = "18px serif";
+  const maxW = bw - 40;
+  const words = shown.split(" ");
+  let line = "";
+  let ly = by + 54;
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      ctx.fillText(line, bx + 20, ly);
+      line = w;
+      ly += 24;
+    } else {
+      line = test;
+    }
+  }
+  ctx.fillText(line, bx + 20, ly);
+
+  if (shown.length >= full.length) {
+    ctx.fillStyle = `rgba(232,196,106,${0.5 + 0.5 * Math.sin(performance.now() / 200)})`;
+    ctx.font = "bold 15px serif";
+    ctx.textAlign = "right";
+    ctx.fillText(
+      dlg.idx >= d.lines.length - 1 ? "S para fechar ▸" : "S para continuar ▸",
+      bx + bw - 16,
+      by + bh - 12,
+    );
+    ctx.textAlign = "left";
+  }
 }
 
 function drawShieldHouse2D(ctx: CanvasRenderingContext2D, camX: number, t: number) {
@@ -1571,8 +1698,8 @@ function drawKnight(ctx: CanvasRenderingContext2D, camX: number, t: number, ball
   ctx.fillText(label, x, base - 152);
   ctx.textAlign = "left";
 
-  if (Math.abs(ball.x - KNIGHT_X) < 260) {
-    speech(ctx, x, base - 100, "Nossa vila está sendo atacada!");
+  if (Math.abs(ball.x - KNIGHT_X) < 120) {
+    drawTalkPrompt(ctx, x, base - 140, t);
   }
 }
 
@@ -1632,8 +1759,8 @@ function drawMerchant(ctx: CanvasRenderingContext2D, camX: number, t: number, ba
   ctx.fill();
   ctx.restore();
 
-  if (Math.abs(ball.x - F2_MERCHANT_X) < 260) {
-    speech(ctx, x, base - 110, "Este lugar está uma baderna!");
+  if (Math.abs(ball.x - F2_MERCHANT_X) < 120) {
+    drawTalkPrompt(ctx, x, base - 128, t);
   }
 }
 
@@ -1687,8 +1814,8 @@ function drawPope(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: 
   ctx.fill();
   ctx.restore();
 
-  if (Math.abs(ball.x - POPE_X) < 260) {
-    speech(ctx, x, base - 140, "Cuidado com o monstro!");
+  if (Math.abs(ball.x - POPE_X) < 120) {
+    drawTalkPrompt(ctx, x, base - 150, t);
   }
 }
 
