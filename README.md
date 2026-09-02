@@ -25,12 +25,15 @@ No celular: deslize o dedo para andar, toque com 1 dedo para pular/agir, toque
 com 2 dedos para `Q`, 3 dedos para `W` e 4 dedos para `E`; perto de um NPC, o
 toque também inicia/avança o diálogo.
 
-Percurso: interior da casa → aldeia medieval → casa do escudo → moinho (ranking
-com estrelas conforme os corações) → fase 2. Abra o baú, pegue o escudo
-templário, enfrente os soldados e o general, e na fase 2 derrote os três
-soldados, ganhe a Luz Brilhante do Papa e a poção da casa com a cruz, até
-vencer o dragão negro de três cabeças — Preconceito, Discriminação e
-Desrespeito.
+Percurso: o Professor de Ensino Religioso apresenta a história numa sala de
+aula ("Há muito tempo, na Idade Média, houve uma guerra religiosa chamada
+Cruzadas") → interior da casa → aldeia medieval → casa do escudo → moinho
+(ranking com estrelas conforme os corações) → fase 2. Derrote os três soldados
+e o general; na fase 2, vença os três soldados e veja o Papa mandar matar o
+profeta Maomé — mas antes disso surge o dragão Preconceito e Discriminação.
+Ganhe a Luz Brilhante com Maomé, use a poção da casa com a cruz e derrote o
+dragão para zerar o jogo: o Papa e Maomé fazem as pazes e Jerusalém vira
+território pacífico, com o ranking da fase 2 na tela final.
 
 ## Rodando o projeto
 

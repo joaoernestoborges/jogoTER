@@ -32,6 +32,13 @@ const CREDITS = [
 ];
 
 const DIALOGUES = {
+  professor: {
+    name: "Professor de Ensino Religioso",
+    lines: [
+      "Há muito tempo, na Idade Média, houve uma guerra religiosa chamada Cruzadas.",
+      "Entre nesta história e boa viagem!",
+    ],
+  },
   knight: {
     name: "Cavaleiro Cristão",
     lines: [
@@ -49,10 +56,14 @@ const DIALOGUES = {
   },
   pope: {
     name: "Papa",
+    lines: ["Cuidado! Ali está o profeta Maomé!", "Ele não segue a nossa fé... Mate-o!"],
+  },
+  muhammad: {
+    name: "Profeta Maomé",
     lines: [
-      "Cuidado com o monstro!",
-      "O dragão negro se alimenta do Preconceito, da Discriminação e do Desrespeito.",
-      "Leve esta Luz Brilhante e traga a paz de volta à aldeia!",
+      "O Papa está cego pela intolerância...",
+      "O ódio dele deu vida ao Dragão Preconceito e Discriminação!",
+      "Leve esta Luz Brilhante e tragam a paz de volta!",
     ],
   },
 } as const;
@@ -85,7 +96,8 @@ const F2_SOLDIER3_X = 3000;
 const F2_MERCHANT_X = 640; // comerciante árabe (fase 2)
 const F2_POTION_HOUSE_X = 1705; // porta da casa da poção (fase 2)
 const POPE_X = 3480; // papa, após os 3 soldados (fase 2)
-const DRAGON_X = 3900; // dragão negro de três cabeças
+const MUHAMMAD_X = 3580; // profeta Maomé, ao lado do papa (fase 2)
+const DRAGON_X = 3900; // dragão Preconceito e Discriminação
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("menu");
@@ -173,10 +185,12 @@ type Enemy = {
   heads: number; // cabeças restantes (apenas o dragão)
 };
 
-const DRAGON_HEAD_NAMES = ["Desrespeito", "Discriminação", "Preconceito"];
+const DRAGON_HEAD_NAMES = ["Discriminação", "Preconceito"];
 
 function dragonHeadName(e: Enemy): string {
-  return e.heads > 0 && e.heads <= 3 ? DRAGON_HEAD_NAMES[e.heads - 1]! : e.name;
+  return e.heads > 0 && e.heads <= DRAGON_HEAD_NAMES.length
+    ? DRAGON_HEAD_NAMES[e.heads - 1]!
+    : e.name;
 }
 
 function makeEnemy(kind: EnemyKind, x: number): Enemy {
@@ -188,7 +202,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
         ? "Soldado Muçulmano"
         : kind === "general"
           ? "General Muçulmano"
-          : "Dragão Negro",
+          : "Dragão Preconceito e Discriminação",
     state: "idle",
     timer: 0,
     atk: ATTACKS[0]!,
@@ -197,7 +211,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
     dodged: false,
     bucket: 0,
     shieldThrow: 0,
-    heads: kind === "dragon" ? 3 : 0,
+    heads: kind === "dragon" ? 2 : 0,
   };
 }
 
@@ -215,8 +229,14 @@ function Game({ onDeath }: { onDeath: () => void }) {
     const ball: Ball = { x: 120, y: GROUND - 18, vx: 0, vy: 0, r: 18, onGround: true };
 
     let phase:
-      "intro" | "inside" | "village" | "shieldhouse" | "millinside" | "fase2" | "potionhouse" =
-      "intro";
+      | "classroom"
+      | "intro"
+      | "inside"
+      | "village"
+      | "shieldhouse"
+      | "millinside"
+      | "fase2"
+      | "potionhouse" = "classroom";
     let introT = 0;
     let chestOpen = 0;
     let camX = 0;
@@ -235,7 +255,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
     let millStars = 5;
     let victory = false;
     let victoryT = 0;
-    let dlg: Dlg | null = null;
+    let victoryStars = 5;
+    let dragonVisible = false;
+    let dlg: Dlg | null = { npc: "professor", idx: 0, chars: 0 };
 
     const startDlg = (npc: DlgNpc) => {
       dlg = { npc, idx: 0, chars: 0 };
@@ -251,12 +273,18 @@ function Game({ onDeath }: { onDeath: () => void }) {
       }
       d.idx += 1;
       d.chars = 0;
-      if (d.idx >= DIALOGUES[d.npc].lines.length) {
-        if (d.npc === "pope" && !hasLight) {
-          hasLight = true;
-          say("Você recebeu a Luz Brilhante!");
-        }
-        dlg = null;
+      if (d.idx < DIALOGUES[d.npc].lines.length) return;
+      dlg = null;
+      if (d.npc === "professor") {
+        phase = "intro";
+        introT = 0;
+        fade = 1;
+      } else if (d.npc === "pope") {
+        dragonVisible = true;
+        say("O Dragão Preconceito e Discriminação apareceu!");
+      } else if (d.npc === "muhammad" && !hasLight) {
+        hasLight = true;
+        say("Você recebeu a Luz Brilhante!");
       }
     };
 
@@ -448,19 +476,24 @@ function Game({ onDeath }: { onDeath: () => void }) {
 
       const e = enemies[current];
       if (!e) return;
+      if (e.kind === "dragon" && !dragonVisible) return;
       if (e.bucket > 0) e.bucket--;
       if (e.shieldThrow > 0) e.shieldThrow++;
 
       if (e.state === "idle") {
         // o dragão só se aproxima depois do Papa (gatilho mais curto)
-        const trig = e.kind === "dragon" ? 300 : 420;
+        const trig = e.kind === "dragon" ? 200 : 420;
         if (ball.x > e.x - trig) {
           e.state = "charging";
           e.timer = 0;
           e.hits = 0;
           e.resolved = false;
           e.atk = pickAttack();
-          say(e.kind === "dragon" ? "O Dragão Negro apareceu!" : e.name + " apareceu!");
+          say(
+            e.kind === "dragon"
+              ? "O Dragão Preconceito e Discriminação apareceu!"
+              : e.name + " apareceu!",
+          );
         }
         return;
       }
@@ -505,6 +538,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
                 e.state = "gone";
                 victory = true;
                 victoryT = 0;
+                victoryStars = Math.max(1, Math.min(5, hearts));
               } else {
                 e.state = "charging";
                 e.timer = 0;
@@ -563,7 +597,16 @@ function Game({ onDeath }: { onDeath: () => void }) {
         say("A poção recuperou 3 corações!");
       }
 
-      if (phase === "intro") {
+      // progressão dos diálogos (caixa de texto na parte inferior)
+      if (dlg) {
+        dlg.chars += 1;
+        if (justPressed["s"] || justPressed[" "]) advanceDlg();
+      }
+
+      if (phase === "classroom") {
+        drawClassroom(ctx, t);
+        if (dlg) drawDialog(ctx, dlg);
+      } else if (phase === "intro") {
         introT += 1;
         const target = CHEST.x - 24;
         if (introT < 90) {
@@ -677,16 +720,23 @@ function Game({ onDeath }: { onDeath: () => void }) {
         if (!dead) physics(VILLAGE_W, frozen);
         if (!inDlg) combat();
 
-        // diálogo com NPCs: aperte S perto deles
-        if (dlg) {
-          dlg.chars += 1;
-          if (justPressed["s"] || justPressed[" "]) advanceDlg();
-        } else {
+        // iniciar diálogo com NPCs: aperte S perto do mais próximo
+        if (!dlg) {
           let npc: DlgNpc | null = null;
-          if (phase === "village" && Math.abs(ball.x - KNIGHT_X) < 120) npc = "knight";
-          if (phase === "fase2" && Math.abs(ball.x - F2_MERCHANT_X) < 120) npc = "merchant";
-          if (phase === "fase2" && soldiersDefeated() && Math.abs(ball.x - POPE_X) < 120)
-            npc = "pope";
+          let best = 120;
+          const consider = (n: DlgNpc, x: number) => {
+            const dist = Math.abs(ball.x - x);
+            if (dist < best) {
+              best = dist;
+              npc = n;
+            }
+          };
+          if (phase === "village") consider("knight", KNIGHT_X);
+          if (phase === "fase2") consider("merchant", F2_MERCHANT_X);
+          if (phase === "fase2" && soldiersDefeated()) {
+            consider("pope", POPE_X);
+            consider("muhammad", MUHAMMAD_X);
+          }
           if (npc) {
             hintText(ctx, "Aperte S (ou toque) para conversar");
             if (justPressed["s"] || justPressed[" "]) startDlg(npc);
@@ -737,8 +787,13 @@ function Game({ onDeath }: { onDeath: () => void }) {
           drawMillExit(ctx, camX);
           drawPotionHouse2D(ctx, camX, t);
           drawMerchant(ctx, camX, t, ball);
-          if (soldiersDefeated()) drawPope(ctx, camX, t, ball);
-          for (const en of enemies) drawEnemy(ctx, camX, t, en);
+          if (soldiersDefeated()) {
+            drawPope(ctx, camX, t, ball);
+            drawMuhammad(ctx, camX, t, ball);
+          }
+          for (const en of enemies) {
+            if (en.kind !== "dragon" || dragonVisible) drawEnemy(ctx, camX, t, en);
+          }
 
           // entrar na casa da poção
           if (!dlg && Math.abs(ball.x - F2_POTION_HOUSE_X) < 55) {
@@ -755,7 +810,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
 
           if (victory) {
             victoryT++;
-            drawVictory(ctx, victoryT);
+            drawVictory(ctx, victoryT, victoryStars);
             if (victoryT > 90 && justPressed[" "]) onDeath();
           }
         }
@@ -1954,11 +2009,273 @@ function drawDragon(ctx: CanvasRenderingContext2D, camX: number, t: number, e: E
   ctx.textAlign = "left";
 }
 
-function drawVictory(ctx: CanvasRenderingContext2D, victoryT: number) {
+function drawMuhammad(ctx: CanvasRenderingContext2D, camX: number, t: number, ball: Ball) {
+  const x = MUHAMMAD_X - camX;
+  if (x < -220 || x > W + 220) return;
+  const base = GROUND;
+  const bob = Math.sin(t / 30) * 2;
+
+  ctx.save();
+  ctx.translate(x, base + bob);
+
+  // cajado
+  ctx.fillStyle = "#8a6a3b";
+  ctx.fillRect(-30, -104, 5, 104);
+
+  // túnica verde com faixa
+  ctx.fillStyle = "#2f6b4f";
+  ctx.beginPath();
+  ctx.moveTo(-15, -72);
+  ctx.lineTo(-22, 0);
+  ctx.lineTo(22, 0);
+  ctx.lineTo(15, -72);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#1d4a37";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#e8c46a";
+  ctx.fillRect(-17, -46, 34, 6);
+
+  // cabeça, barba e turbante branco
+  ctx.fillStyle = "#c8a07a";
+  ctx.beginPath();
+  ctx.arc(0, -80, 11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#4a3520";
+  ctx.beginPath();
+  ctx.moveTo(-9, -78);
+  ctx.quadraticCurveTo(0, -58, 9, -78);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#f0ede4";
+  ctx.beginPath();
+  ctx.ellipse(0, -90, 14, 8, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.restore();
+
+  if (Math.abs(ball.x - MUHAMMAD_X) < 120) {
+    drawTalkPrompt(ctx, x, base - 128, t);
+  }
+}
+
+function drawPeaceScene(ctx: CanvasRenderingContext2D, cx: number, cy: number) {
+  // Papa à esquerda
+  ctx.save();
+  ctx.translate(cx - 70, cy);
+  ctx.fillStyle = "#f0ede4";
+  ctx.beginPath();
+  ctx.moveTo(-14, -64);
+  ctx.lineTo(-20, 0);
+  ctx.lineTo(20, 0);
+  ctx.lineTo(14, -64);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#d8d2c2";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#e8c46a";
+  ctx.fillRect(-5, -62, 4, 60);
+  ctx.fillRect(1, -62, 4, 60);
+  ctx.fillStyle = "#e8c4a0";
+  ctx.beginPath();
+  ctx.arc(0, -72, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e8c46a";
+  ctx.beginPath();
+  ctx.ellipse(0, -81, 12, 5, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, -86, 10, 4, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = "#f0ede4";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(8, -50);
+  ctx.lineTo(52, -44);
+  ctx.stroke();
+  ctx.restore();
+
+  // Maomé à direita
+  ctx.save();
+  ctx.translate(cx + 70, cy);
+  ctx.fillStyle = "#2f6b4f";
+  ctx.beginPath();
+  ctx.moveTo(-14, -64);
+  ctx.lineTo(-20, 0);
+  ctx.lineTo(20, 0);
+  ctx.lineTo(14, -64);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#1d4a37";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#e8c46a";
+  ctx.fillRect(-17, -40, 34, 6);
+  ctx.fillStyle = "#c8a07a";
+  ctx.beginPath();
+  ctx.arc(0, -72, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#4a3520";
+  ctx.beginPath();
+  ctx.moveTo(-8, -70);
+  ctx.quadraticCurveTo(0, -54, 8, -70);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#f0ede4";
+  ctx.beginPath();
+  ctx.ellipse(0, -81, 12, 5, 0, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = "#2f6b4f";
+  ctx.lineWidth = 8;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-8, -50);
+  ctx.lineTo(-52, -44);
+  ctx.stroke();
+  ctx.restore();
+  ctx.lineCap = "butt";
+
+  // aperto de mãos brilhante
+  const g = ctx.createRadialGradient(cx, cy - 47, 2, cx, cy - 47, 26);
+  g.addColorStop(0, "rgba(255,240,180,0.9)");
+  g.addColorStop(1, "rgba(255,240,180,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 47, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#e8c46a";
+  ctx.beginPath();
+  ctx.arc(cx, cy - 47, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // pombinhas da paz acima
+  ctx.fillStyle = "#f0ede4";
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(cx + s * 26, cy - 96, 9, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + s * 32, cy - 100, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawClassroom(ctx: CanvasRenderingContext2D, t: number) {
+  // parede e piso
+  ctx.fillStyle = "#d9cba8";
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "#8a6a4a";
+  ctx.fillRect(0, H - 110, W, 110);
+  ctx.fillStyle = "rgba(0,0,0,0.15)";
+  ctx.fillRect(0, H - 110, W, 6);
+
+  // quadro-negro
+  ctx.fillStyle = "#5b432a";
+  ctx.fillRect(80, 50, 580, 250);
+  ctx.fillStyle = "#2e4231";
+  ctx.fillRect(94, 64, 552, 222);
+  ctx.fillStyle = "rgba(240,240,220,0.9)";
+  ctx.font = "bold 34px serif";
+  ctx.textAlign = "center";
+  ctx.fillText("As Cruzadas", 370, 130);
+  ctx.font = "20px serif";
+  ctx.fillText("uma guerra religiosa na Idade Média", 370, 168);
+  ctx.textAlign = "left";
+
+  // giz e apagador na bandeja do quadro
+  ctx.fillStyle = "#f0ede4";
+  ctx.fillRect(120, 306, 40, 7);
+  ctx.fillStyle = "#4a3520";
+  ctx.fillRect(560, 304, 46, 9);
+
+  // relógio
+  ctx.fillStyle = "#f0ede4";
+  ctx.beginPath();
+  ctx.arc(820, 100, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#4a3520";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(820, 100);
+  ctx.lineTo(820, 84);
+  ctx.moveTo(820, 100);
+  ctx.lineTo(832, 104);
+  ctx.stroke();
+
+  // professor de ensino religioso
+  const bob = Math.sin(t / 30) * 2;
+  ctx.save();
+  ctx.translate(740, H - 110 + bob);
+  ctx.fillStyle = "#3a2a18";
+  ctx.fillRect(-14, -46, 11, 46);
+  ctx.fillRect(3, -46, 11, 46);
+  ctx.fillStyle = "#6b5844";
+  ctx.fillRect(-18, -110, 36, 66);
+  ctx.strokeStyle = "#4a3520";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-18, -110, 36, 66);
+  ctx.fillStyle = "#f0ede4";
+  ctx.fillRect(-5, -110, 10, 30);
+  ctx.fillStyle = "#8c2b2b";
+  ctx.beginPath();
+  ctx.moveTo(0, -108);
+  ctx.lineTo(4, -100);
+  ctx.lineTo(0, -84);
+  ctx.lineTo(-4, -100);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#e8c4a0";
+  ctx.beginPath();
+  ctx.arc(0, -122, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#7a736a";
+  ctx.beginPath();
+  ctx.arc(0, -126, 12, Math.PI, 0);
+  ctx.fill();
+  ctx.strokeStyle = "#3a2a18";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-5, -121, 4, 0, Math.PI * 2);
+  ctx.arc(5, -121, 4, 0, Math.PI * 2);
+  ctx.moveTo(-1, -121);
+  ctx.lineTo(1, -121);
+  ctx.stroke();
+  ctx.strokeStyle = "#6b5844";
+  ctx.lineWidth = 9;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-14, -100);
+  ctx.lineTo(-58, -130);
+  ctx.stroke();
+  ctx.lineCap = "butt";
+  ctx.strokeStyle = "#8a6a3b";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-58, -130);
+  ctx.lineTo(-96, -150);
+  ctx.stroke();
+  ctx.restore();
+
+  // carteiras em primeiro plano
+  for (let i = 0; i < 3; i++) {
+    const dx = 130 + i * 300;
+    ctx.fillStyle = "#5b432a";
+    ctx.fillRect(dx, H - 84, 220, 14);
+    ctx.fillRect(dx + 8, H - 70, 12, 60);
+    ctx.fillRect(dx + 200, H - 70, 12, 60);
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    ctx.fillRect(dx, H - 84, 220, 4);
+  }
+}
+
+function drawVictory(ctx: CanvasRenderingContext2D, victoryT: number, stars: number) {
   ctx.fillStyle = "rgba(10,5,0,0.78)";
   ctx.fillRect(0, 0, W, H);
 
-  const g = ctx.createRadialGradient(W / 2, 150, 20, W / 2, 150, 260);
+  const g = ctx.createRadialGradient(W / 2, 180, 20, W / 2, 180, 300);
   g.addColorStop(0, "rgba(255,230,150,0.35)");
   g.addColorStop(1, "rgba(255,230,150,0)");
   ctx.fillStyle = g;
@@ -1966,32 +2283,50 @@ function drawVictory(ctx: CanvasRenderingContext2D, victoryT: number) {
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#e8c46a";
-  ctx.font = "bold 44px serif";
-  ctx.fillText("Você venceu!", W / 2, 150);
+  ctx.font = "bold 42px serif";
+  ctx.fillText("Você zerou o jogo!", W / 2, 64);
+
+  // o Papa e Maomé fazem as pazes
+  drawPeaceScene(ctx, W / 2, 210);
+
   ctx.fillStyle = "#f0e2c0";
   ctx.font = "22px serif";
-  ctx.fillText(
-    "O dragão do Preconceito, da Discriminação e do Desrespeito foi derrotado!",
-    W / 2,
-    200,
-  );
-  ctx.fillText("Multirreligiosidade e tolerância triunfaram!", W / 2, 232);
+  ctx.fillText("O Papa e Maomé fizeram as pazes!", W / 2, 252);
+  ctx.fillText("E assim Jerusalém virou território pacífico!", W / 2, 280);
 
+  // ranking da fase 2 (1 a 5 estrelas conforme os corações)
+  ctx.fillStyle = "#e8c46a";
+  ctx.font = "bold 20px serif";
+  ctx.fillText("Ranking da Fase 2", W / 2, 322);
+  const revealEach = 28;
   for (let i = 0; i < 5; i++) {
     const sx = W / 2 - 110 + i * 55;
-    const pop = Math.min(1, Math.max(0, (victoryT - 20 - i * 10) / 12));
-    drawStar(ctx, sx, 280, 22 * (0.5 + 0.5 * pop));
-    ctx.fillStyle = `rgba(232,196,106,${0.3 + 0.7 * pop})`;
-    ctx.fill();
-    ctx.strokeStyle = "#8a6a3b";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    const appear = 40 + i * revealEach;
+    if (i < stars && victoryT >= appear) {
+      const pop = Math.min(1, (victoryT - appear) / 10);
+      const scale = 0.5 + 0.5 * pop;
+      ctx.save();
+      ctx.translate(sx, 356);
+      ctx.scale(scale, scale);
+      drawStar(ctx, 0, 0, 22);
+      ctx.fillStyle = "#e8c46a";
+      ctx.fill();
+      ctx.strokeStyle = "#8a6a3b";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      drawStar(ctx, sx, 356, 18);
+      ctx.strokeStyle = "rgba(240,226,192,0.35)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
   }
 
   if (victoryT > 90) {
     ctx.fillStyle = "#e8c46a";
     ctx.font = "bold 20px serif";
-    ctx.fillText("Aperte ESPAÇO para voltar ao menu", W / 2, 360);
+    ctx.fillText("Aperte ESPAÇO para voltar ao menu", W / 2, 424);
   }
   ctx.textAlign = "left";
 }
