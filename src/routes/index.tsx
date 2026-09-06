@@ -35,8 +35,8 @@ const DIALOGUES = {
   professor: {
     name: "Professor de Ensino Religioso",
     lines: [
-      "Há muito tempo, na Idade Média, houve uma guerra religiosa chamada Cruzadas.",
-      "Entre nesta história e boa viagem!",
+      "Há muito tempo na Idade Média, houve uma guerra religiosa, onde a Igreja Católica entrou em guerra com os Muçulmanos Islâmicos.",
+      "No conflito, uma cidade chamada Jerusalém, hoje conhecida como cidade da paz, foi atacada.",
     ],
   },
   knight: {
