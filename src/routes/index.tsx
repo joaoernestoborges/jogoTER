@@ -24,12 +24,23 @@ export const Route = createFileRoute("/")({
 });
 
 const CREDITS = [
-  "Gustavo Mendes Pereira M\u00fcller",
-  "Gabriel Nascimento Rodrigues",
-  "Jo\u00e3o Victor de Souza Lima",
-  "Lucas Yudi da Mata Kabu Barbosa",
-  "Jo\u00e3o Ernesto Martins Borges",
+  {
+    name: "Gustavo Mendes Pereira Müller",
+    role: "Imagens e Implementação do conteúdo religioso",
+  },
+  {
+    name: "Gabriel Nascimento Rodrigues",
+    role: "Desenvolvedor da ideia original e história do jogo",
+  },
+  {
+    name: "João Victor de Souza Lima",
+    role: "Desenvolvedor da ideia do formato, Design e aparência do jogo",
+  },
+  { name: "Lucas Yudi da Mata Kabu Barbosa", role: "Game tester" },
+  { name: "João Ernesto Martins Borges", role: "Programador" },
 ];
+
+const ACKNOWLEDGEMENTS = ["Rodrigo Emmanuel Santana Borges"];
 
 const DIALOGUES = {
   professor: {
@@ -129,8 +140,18 @@ function Index() {
       {screen === "credits" && (
         <section className="w-full max-w-xl rounded-lg border-4 border-[#5b432a] bg-[#241b13] p-8 text-center shadow-2xl">
           <h2 className="text-2xl font-bold text-[#e8c46a] mb-6">Créditos</h2>
-          <ul className="space-y-3 text-lg">
-            {CREDITS.map((n) => (
+          <ul className="space-y-4 text-lg">
+            {CREDITS.map((c) => (
+              <li key={c.name}>
+                <span className="font-semibold text-[#f0e2c0]">{c.name}</span>
+                <br />
+                <span className="text-base text-[#c2ab84]">{c.role}</span>
+              </li>
+            ))}
+          </ul>
+          <h3 className="mt-8 text-xl font-bold text-[#e8c46a]">Agradecimentos</h3>
+          <ul className="mt-2 space-y-1 text-lg text-[#f0e2c0]">
+            {ACKNOWLEDGEMENTS.map((n) => (
               <li key={n}>{n}</li>
             ))}
           </ul>
@@ -173,12 +194,21 @@ function CreditsRoll({ onEnd }: { onEnd: () => void }) {
         onAnimationEnd={() => setDone(true)}
       >
         <h2 className="mt-14 text-3xl font-bold text-[#e8c46a]">Créditos</h2>
-        <ul className="space-y-4 text-2xl text-[#f0e2c0]">
-          {CREDITS.map((n) => (
+        <ul className="space-y-5 text-2xl text-[#f0e2c0]">
+          {CREDITS.map((c) => (
+            <li key={c.name} className="flex flex-col items-center">
+              {c.name}
+              <span className="text-base text-[#c2ab84]">{c.role}</span>
+            </li>
+          ))}
+        </ul>
+        <h3 className="mt-10 text-2xl font-bold text-[#e8c46a]">Agradecimentos</h3>
+        <ul className="mt-2 space-y-1 text-xl text-[#f0e2c0]">
+          {ACKNOWLEDGEMENTS.map((n) => (
             <li key={n}>{n}</li>
           ))}
         </ul>
-        <p className="text-xl text-[#c2ab84]">Trabalho de Ensino Religioso</p>
+        <p className="mt-8 text-xl text-[#c2ab84]">Trabalho de Ensino Religioso</p>
         <p className="text-xl text-[#c2ab84]">Multirreligiosidade e tolerância religiosa</p>
         <p className="mt-10 text-2xl font-semibold text-[#e8c46a]">Obrigado por jogar!</p>
         <p className="mt-24 text-lg tracking-[0.5em] text-[#c2ab84]">★ ★ ★ ★ ★</p>
