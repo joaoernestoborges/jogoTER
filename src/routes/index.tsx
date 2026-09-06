@@ -52,7 +52,11 @@ const DIALOGUES = {
     name: "Comerciante Árabe",
     lines: [
       "Este lugar está uma baderna!",
-      "Soldados por todo lado... cuide-se por aí, forasteiro.",
+      "A alteridade é a capacidade de enxergar o outro como humano legítimo, mas de nenhum dos lados das religiões isso está sendo respeitado.",
+      "Se essa interação fosse pacífica, talvez acontecesse o sincretismo, que é a mescla entre duas religiões...",
+      "...ou o hibridismo, que é a presença de culturas separadamente e que em dado momento acabaram se mesclando, gerando novas culturas e práticas. Mas estamos em uma guerra.",
+      "Nunca se esqueça: o diálogo inter-religioso acontece quando, a partir da própria experiência religiosa, a pessoa reconhece e respeita as experiências religiosas dos outros.",
+      "Agir dessa forma valoriza a alteridade, ou seja, respeita o outro reconhecendo sua dignidade e o direito que ele tem de fazer suas próprias escolhas.",
     ],
   },
   pope: {
