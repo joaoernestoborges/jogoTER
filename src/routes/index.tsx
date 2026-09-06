@@ -452,6 +452,10 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
 
     let raf = 0;
     let t = 0;
+    // normalização por tempo real: dtf = 1 a 60 fps, para o jogo rodar igual
+    // em monitores de qualquer taxa de atualização (120Hz+)
+    let lastFrame = performance.now();
+    let dtf = 1;
 
     const say = (text: string) => {
       banner = text;
@@ -461,9 +465,9 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
     const physics = (worldW: number, frozen: boolean) => {
       const left = !frozen && (keys["a"] || keys["arrowleft"]);
       const right = !frozen && (keys["d"] || keys["arrowright"]);
-      if (left) ball.vx -= 0.8;
-      if (right) ball.vx += 0.8;
-      ball.vx *= frozen ? 0.7 : 0.86;
+      if (left) ball.vx -= 0.8 * dtf;
+      if (right) ball.vx += 0.8 * dtf;
+      ball.vx *= Math.pow(frozen ? 0.7 : 0.86, dtf);
       if (Math.abs(ball.vx) > 6.5) ball.vx = Math.sign(ball.vx) * 6.5;
 
       if (!frozen && (keys[" "] || keys["arrowup"]) && ball.onGround) {
@@ -474,10 +478,10 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
         }
       }
 
-      ball.vy += 0.6;
+      ball.vy += 0.6 * dtf;
       if (ball.vy > 18) ball.vy = 18;
 
-      ball.x += ball.vx;
+      ball.x += ball.vx * dtf;
       if (ball.x - ball.r < 0) {
         ball.x = ball.r;
         ball.vx = 0;
@@ -492,7 +496,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
         ball.vx = 0;
       }
 
-      ball.y += ball.vy;
+      ball.y += ball.vy * dtf;
       if (ball.y + ball.r >= GROUND) {
         ball.y = GROUND - ball.r;
         ball.vy = 0;
@@ -518,14 +522,14 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
 
     const combat = () => {
       if (dead) return;
-      if (hitFlash > 0) hitFlash--;
-      if (dodgeFlash > 0) dodgeFlash--;
+      if (hitFlash > 0) hitFlash = Math.max(0, hitFlash - dtf);
+      if (dodgeFlash > 0) dodgeFlash = Math.max(0, dodgeFlash - dtf);
 
       const e = enemies[current];
       if (!e) return;
       if (e.kind === "dragon" && !dragonVisible) return;
-      if (e.bucket > 0) e.bucket--;
-      if (e.shieldThrow > 0) e.shieldThrow++;
+      if (e.bucket > 0) e.bucket = Math.max(0, e.bucket - dtf);
+      if (e.shieldThrow > 0) e.shieldThrow += dtf;
 
       if (e.state === "idle") {
         // o dragão só se aproxima depois do Papa (gatilho mais curto)
@@ -546,7 +550,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
       }
       if (e.state === "gone") return;
 
-      e.timer++;
+      e.timer += dtf;
 
       if (e.state === "charging") {
         if (!e.resolved) {
@@ -635,8 +639,12 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
     };
 
     const step = () => {
-      t += 1;
-      if (bannerT > 0) bannerT--;
+      const now = performance.now();
+      const dtMs = Math.min(50, now - lastFrame); // limita salto ao voltar de aba em bg
+      lastFrame = now;
+      dtf = dtMs / (1000 / 60);
+      t += dtf;
+      if (bannerT > 0) bannerT = Math.max(0, bannerT - dtf);
 
       if (justPressed["r"] && hasPotion) {
         hearts = Math.min(5, hearts + 3);
@@ -646,7 +654,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
 
       // progressão dos diálogos (caixa de texto na parte inferior)
       if (dlg) {
-        dlg.chars += 1;
+        dlg.chars += dtf;
         if (justPressed["s"] || justPressed[" "]) advanceDlg();
       }
 
@@ -654,18 +662,18 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
         drawClassroom(ctx, t);
         if (dlg) drawDialog(ctx, dlg);
       } else if (phase === "intro") {
-        introT += 1;
+        introT += dtf;
         const target = CHEST.x - 24;
         if (introT < 90) {
-          if (ball.x < target) ball.x += 2.4;
+          if (ball.x < target) ball.x += 2.4 * dtf;
         } else if (introT < 150) {
           chestOpen = Math.min(1, (introT - 90) / 45);
-          if (introT === 120) ball.vy = -11;
+          if (introT >= 120 && ball.onGround) ball.vy = -11;
         } else {
           phase = "inside";
         }
-        ball.vy += 0.6;
-        ball.y += ball.vy;
+        ball.vy += 0.6 * dtf;
+        ball.y += ball.vy * dtf;
         if (ball.y + ball.r >= GROUND) {
           ball.y = GROUND - ball.r;
           ball.vy = 0;
@@ -747,7 +755,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
         }
         if (hasPotion) hintText(ctx, "Volte pela porta à esquerda ←");
       } else if (phase === "millinside") {
-        millT++;
+        millT += dtf;
         drawMillInside(ctx, ball, millT, millStars, t);
         if (millT > 216 && justPressed[" "]) {
           phase = "fase2";
@@ -856,7 +864,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
           }
 
           if (victory) {
-            victoryT++;
+            victoryT += dtf;
             drawVictory(ctx, victoryT, victoryStars);
             if (victoryT > 90 && justPressed[" "]) onVictory();
           }
@@ -906,7 +914,7 @@ function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => vo
       if (fade > 0) {
         ctx.fillStyle = `rgba(0,0,0,${fade})`;
         ctx.fillRect(0, 0, W, H);
-        fade -= 0.02;
+        fade -= 0.02 * dtf;
       }
 
       justPressed = {};

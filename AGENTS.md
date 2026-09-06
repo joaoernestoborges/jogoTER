@@ -99,8 +99,9 @@ and a full canvas game loop inside a single `useEffect` (fixed 900×520 canvas,
 - Enemies (village: `soldier` ×2 + `general`; fase 2: `soldier` ×3 + the
   three-headed `dragon` Preconceito, Discriminação e Intolerância, which only
   appears after the Pope's dialogue) run a state machine:
-  `idle → charging → vulnerable → dizzy → pinned → gone`, timed in frames
-  (60 fps assumptions: `CHARGE=120`, `VULN=240`, `DIZZY=180`).
+  `idle → charging → vulnerable → dizzy → pinned → gone`, timed in "60fps
+  frames" scaled by real elapsed time (`dtf`), so the dodge window
+  (`CHARGE=120` = 2s) is refresh-rate independent.
 - Controls: A/D move, Space jump/act, E/W/Q color-matched dodge during enemy
   strikes, R drinks the potion, S talks to NPCs (linear dialog box at the
   bottom; `DIALOGUES` at the top of the file holds each NPC's lines and the
