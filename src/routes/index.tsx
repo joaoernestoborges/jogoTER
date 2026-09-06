@@ -63,10 +63,16 @@ const DIALOGUES = {
     name: "Papa",
     lines: ["Cuidado! Ali está o profeta Maomé!", "Ele não segue a nossa fé... Mate-o!"],
   },
+  pope2: {
+    name: "Papa",
+    lines: [
+      "Se não respeitamos as religiões dos outros, a discriminação, o preconceito e a intolerância nascem!",
+    ],
+  },
   muhammad: {
     name: "Profeta Maomé",
     lines: [
-      "O Papa está cego pela intolerância...",
+      "O Papa está cego pela raiva...",
       "O ódio dele deu vida ao Dragão Preconceito, Discriminação e Intolerância!",
       "Leve esta Luz Brilhante e tragam a paz de volta!",
     ],
@@ -289,8 +295,9 @@ function Game({ onDeath }: { onDeath: () => void }) {
         introT = 0;
         fade = 1;
       } else if (d.npc === "pope") {
+        // o dragão aparece e o Papa, em seguida, reflete sobre o que fez
         dragonVisible = true;
-        say("O Dragão Preconceito, Discriminação e Intolerância apareceu!");
+        dlg = { npc: "pope2", idx: 0, chars: 0 };
       } else if (d.npc === "muhammad" && !hasLight) {
         hasLight = true;
         say("Você recebeu a Luz Brilhante!");
@@ -743,7 +750,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
           if (phase === "village") consider("knight", KNIGHT_X);
           if (phase === "fase2") consider("merchant", F2_MERCHANT_X);
           if (phase === "fase2" && soldiersDefeated()) {
-            consider("pope", POPE_X);
+            consider(dragonVisible ? "pope2" : "pope", POPE_X);
             consider("muhammad", MUHAMMAD_X);
           }
           if (npc) {
