@@ -82,7 +82,7 @@ const DIALOGUES = {
 type DlgNpc = keyof typeof DIALOGUES;
 type Dlg = { npc: DlgNpc; idx: number; chars: number };
 
-type Screen = "menu" | "game" | "credits";
+type Screen = "menu" | "game" | "credits" | "creditsRoll";
 
 const W = 900;
 const H = 520;
@@ -140,9 +140,11 @@ function Index() {
         </section>
       )}
 
+      {screen === "creditsRoll" && <CreditsRoll onEnd={() => setScreen("menu")} />}
+
       {screen === "game" && (
         <section className="flex flex-col items-center gap-4">
-          <Game onDeath={() => setScreen("menu")} />
+          <Game onDeath={() => setScreen("menu")} onVictory={() => setScreen("creditsRoll")} />
           <p className="text-sm text-[#c2ab84] text-center">
             A / D para andar · Espaço para pular e agir · aperte E / W / Q (aura roxa / verde /
             azul) no momento do golpe para desviar ou defender
@@ -156,6 +158,35 @@ function Index() {
         </section>
       )}
     </main>
+  );
+}
+
+function CreditsRoll({ onEnd }: { onEnd: () => void }) {
+  const [done, setDone] = useState(false);
+  return (
+    <section
+      className="relative flex w-full max-w-2xl items-center justify-center overflow-hidden rounded-lg border-4 border-[#5b432a] bg-[#241b13] shadow-2xl"
+      style={{ height: 460 }}
+    >
+      <div
+        className="credits-roll absolute inset-x-0 top-0 flex flex-col items-center gap-6 px-8 text-center"
+        onAnimationEnd={() => setDone(true)}
+      >
+        <h2 className="mt-14 text-3xl font-bold text-[#e8c46a]">Créditos</h2>
+        <ul className="space-y-4 text-2xl text-[#f0e2c0]">
+          {CREDITS.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+        <p className="text-xl text-[#c2ab84]">Trabalho de Ensino Religioso</p>
+        <p className="text-xl text-[#c2ab84]">Multirreligiosidade e tolerância religiosa</p>
+        <p className="mt-10 text-2xl font-semibold text-[#e8c46a]">Obrigado por jogar!</p>
+        <p className="mt-24 text-lg tracking-[0.5em] text-[#c2ab84]">★ ★ ★ ★ ★</p>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 z-10 flex justify-center bg-gradient-to-t from-[#241b13] to-transparent p-4 pt-10">
+        <MenuButton onClick={onEnd}>{done ? "Voltar ao menu" : "Pular"}</MenuButton>
+      </div>
+    </section>
   );
 }
 
@@ -226,7 +257,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
   };
 }
 
-function Game({ onDeath }: { onDeath: () => void }) {
+function Game({ onDeath, onVictory }: { onDeath: () => void; onVictory: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -827,7 +858,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
           if (victory) {
             victoryT++;
             drawVictory(ctx, victoryT, victoryStars);
-            if (victoryT > 90 && justPressed[" "]) onDeath();
+            if (victoryT > 90 && justPressed[" "]) onVictory();
           }
         }
 
@@ -893,7 +924,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
       canvas.removeEventListener("touchend", onTouchEnd);
       canvas.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [onDeath]);
+  }, [onDeath, onVictory]);
 
   return (
     <canvas
@@ -1898,103 +1929,238 @@ function drawDragon(ctx: CanvasRenderingContext2D, camX: number, t: number, e: E
   const charging = e.state === "charging";
   const vulnerable = e.state === "vulnerable";
   const bob = Math.sin(t / 26) * 5;
-  const flap = Math.sin(t / 12) * 24;
+  const body = "#23222e"; // escamas escuras
+  const dark = "#15151c"; // contorno/membrana
+  const bone = "#c9cdd8"; // chifres, espinhos e garras
 
   ctx.save();
   ctx.translate(x, base + bob);
 
-  // asas
-  ctx.fillStyle = "#15151c";
+  // asas com membrana e ossos
   for (const s of [-1, 1]) {
     ctx.save();
     ctx.scale(s, 1);
+    ctx.translate(30, -120);
+    ctx.rotate(-0.45 + Math.sin(t / 12) * 0.15);
+    ctx.fillStyle = dark;
     ctx.beginPath();
-    ctx.moveTo(40, -110);
-    ctx.lineTo(170, -200 + flap);
-    ctx.lineTo(150, -100);
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(80, -95, 145, -118);
+    ctx.quadraticCurveTo(118, -58, 132, -30);
+    ctx.quadraticCurveTo(92, -38, 82, 2);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = "#45445a";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(145, -118);
+    ctx.moveTo(8, -8);
+    ctx.quadraticCurveTo(64, -58, 132, -30);
+    ctx.moveTo(6, -3);
+    ctx.quadraticCurveTo(44, -42, 82, 2);
+    ctx.stroke();
     ctx.restore();
   }
 
-  // cauda
-  ctx.strokeStyle = "#1d1d26";
-  ctx.lineWidth = 16;
+  // cauda afunilada com ponta em seta
+  ctx.strokeStyle = body;
   ctx.lineCap = "round";
+  ctx.lineWidth = 20;
   ctx.beginPath();
-  ctx.moveTo(-55, -70);
-  ctx.quadraticCurveTo(-150, -60, -180, -120);
+  ctx.moveTo(-50, -60);
+  ctx.quadraticCurveTo(-130, -40, -168, -98);
   ctx.stroke();
-  ctx.fillStyle = "#1d1d26";
+  ctx.lineWidth = 11;
   ctx.beginPath();
-  ctx.moveTo(-180, -120);
-  ctx.lineTo(-202, -138);
-  ctx.lineTo(-176, -134);
+  ctx.moveTo(-168, -98);
+  ctx.quadraticCurveTo(-188, -122, -206, -136);
+  ctx.stroke();
+  ctx.lineCap = "butt";
+  ctx.fillStyle = body;
+  ctx.beginPath();
+  ctx.moveTo(-206, -136);
+  ctx.lineTo(-230, -148);
+  ctx.lineTo(-210, -120);
   ctx.closePath();
   ctx.fill();
-  ctx.lineCap = "butt";
 
-  // pernas com garras
-  ctx.fillStyle = "#1d1d26";
-  ctx.fillRect(-46, -42, 24, 42);
-  ctx.fillRect(22, -42, 24, 42);
-  ctx.fillStyle = "#dfe6ec";
-  for (const lx of [-46, -32, 22, 36]) ctx.fillRect(lx, -6, 8, 6);
+  // pernas robustas com garras
+  for (const lx of [-46, 24]) {
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.roundRect(lx, -48, 22, 44, 8);
+    ctx.fill();
+    ctx.fillStyle = dark;
+    ctx.beginPath();
+    ctx.roundRect(lx - 4, -10, 30, 10, 4);
+    ctx.fill();
+    ctx.fillStyle = bone;
+    for (let c = 0; c < 3; c++) {
+      ctx.beginPath();
+      ctx.moveTo(lx + 1 + c * 9, -3);
+      ctx.lineTo(lx + 5 + c * 9, 5);
+      ctx.lineTo(lx + 9 + c * 9, -3);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
 
-  // corpo e barriga
-  ctx.fillStyle = "#1d1d26";
+  // corpo escamado
+  ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.ellipse(0, -86, 72, 54, 0, 0, Math.PI * 2);
+  ctx.moveTo(-55, -18);
+  ctx.quadraticCurveTo(-86, -78, -50, -124);
+  ctx.quadraticCurveTo(0, -148, 50, -124);
+  ctx.quadraticCurveTo(86, -78, 55, -18);
+  ctx.quadraticCurveTo(0, 0, -55, -18);
+  ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = "#000";
+  ctx.strokeStyle = dark;
   ctx.lineWidth = 3;
   ctx.stroke();
-  ctx.fillStyle = "#2e2e3c";
+
+  // barriga com escamas
+  ctx.fillStyle = "#3c3b4a";
   ctx.beginPath();
-  ctx.ellipse(0, -64, 44, 26, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, -62, 38, 40, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.35)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(0, -88 + i * 24, 32 - i * 4, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+  }
+
+  // espinhos dorsais
+  ctx.fillStyle = bone;
+  for (let i = 0; i < 4; i++) {
+    const sxp = -38 + i * 25;
+    const syp = -130 + Math.abs(i - 1.5) * 7;
+    ctx.beginPath();
+    ctx.moveTo(sxp - 7, syp);
+    ctx.lineTo(sxp, syp - 17);
+    ctx.lineTo(sxp + 7, syp);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   // cabeças conforme restam
   const neckOffsets = e.heads === 3 ? [-64, 0, 64] : e.heads === 2 ? [-38, 38] : [0];
   for (const nx of neckOffsets) {
-    ctx.strokeStyle = "#1d1d26";
-    ctx.lineWidth = 18;
+    // pescoço curvado com espinhos
+    ctx.strokeStyle = body;
+    ctx.lineWidth = 19;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(nx / 2, -110);
-    ctx.quadraticCurveTo(nx, -160, nx, -196);
+    ctx.moveTo(nx / 2, -122);
+    ctx.quadraticCurveTo(nx, -164, nx, -196);
     ctx.stroke();
-
-    ctx.save();
-    ctx.translate(nx, -204);
-    if (nx < 0) ctx.rotate(-0.25);
-    if (nx > 0) ctx.rotate(0.25);
-    ctx.fillStyle = "#1d1d26";
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 24, 13, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(6, 2);
-    ctx.lineTo(30, 10 + (charging ? 6 : 2));
-    ctx.lineTo(6, 10);
-    ctx.closePath();
-    ctx.fill();
-    if (charging) {
-      ctx.fillStyle = e.atk.glow + "0.9)";
+    ctx.lineCap = "butt";
+    ctx.fillStyle = bone;
+    for (let i = 1; i <= 3; i++) {
+      const tt = i / 4;
+      const px = (1 - tt) * (1 - tt) * (nx / 2) + 2 * (1 - tt) * tt * nx + tt * tt * nx;
+      const py = (1 - tt) * (1 - tt) * -122 + 2 * (1 - tt) * tt * -164 + tt * tt * -196;
       ctx.beginPath();
-      ctx.ellipse(38, 8, 16, 8, 0.2, 0, Math.PI * 2);
+      ctx.moveTo(px - 5, py - 9);
+      ctx.lineTo(px, py - 20);
+      ctx.lineTo(px + 5, py - 9);
+      ctx.closePath();
       ctx.fill();
     }
-    ctx.fillStyle = vulnerable ? "#ffd24a" : "#ff4040";
+
+    ctx.save();
+    ctx.translate(nx, -200);
+    if (nx < 0) ctx.rotate(-0.22);
+    if (nx > 0) ctx.rotate(0.22);
+
+    // crânio e focinho alongado
+    ctx.fillStyle = body;
     ctx.beginPath();
-    ctx.arc(4, -6, 3.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#dfe6ec";
-    ctx.beginPath();
-    ctx.moveTo(-8, -12);
-    ctx.lineTo(-14, -26);
-    ctx.lineTo(-4, -14);
+    ctx.moveTo(-16, -12);
+    ctx.quadraticCurveTo(-14, -22, 0, -20);
+    ctx.quadraticCurveTo(16, -18, 26, -8);
+    ctx.lineTo(30, -2);
+    ctx.lineTo(18, 2);
+    ctx.quadraticCurveTo(4, 8, -10, 6);
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // mandíbula aberta com dentes
+    const jaw = charging ? 10 : 4;
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.moveTo(6, 2);
+    ctx.lineTo(28, 8 + jaw);
+    ctx.lineTo(22, 12);
+    ctx.quadraticCurveTo(6, 14, -6, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#e9e4d6";
+    ctx.beginPath();
+    ctx.moveTo(12, 1);
+    ctx.lineTo(15, 6);
+    ctx.lineTo(18, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(19, 4);
+    ctx.lineTo(22, 9);
+    ctx.lineTo(24, 5);
+    ctx.closePath();
+    ctx.fill();
+
+    // narina e olho com pupila em fenda
+    ctx.fillStyle = "#0c0c12";
+    ctx.beginPath();
+    ctx.arc(24, -6, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = charging ? e.atk.color : vulnerable ? "#ffd24a" : "#ff4040";
+    ctx.beginPath();
+    ctx.ellipse(2, -12, 5, 3.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#0c0c12";
+    ctx.fillRect(1.4, -14, 1.6, 5);
+
+    // chifres curvados
+    ctx.fillStyle = bone;
+    ctx.beginPath();
+    ctx.moveTo(-8, -18);
+    ctx.quadraticCurveTo(-20, -34, -26, -44);
+    ctx.quadraticCurveTo(-16, -36, -4, -22);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(2, -19);
+    ctx.quadraticCurveTo(0, -34, -4, -44);
+    ctx.quadraticCurveTo(6, -32, 8, -20);
+    ctx.closePath();
+    ctx.fill();
+
+    // baforada de fogo durante o golpe
+    if (charging) {
+      const flick = Math.sin(t / 4 + nx) * 6;
+      ctx.fillStyle = e.atk.glow + "0.85)";
+      ctx.beginPath();
+      ctx.moveTo(28, 0);
+      ctx.quadraticCurveTo(62, -14 + flick, 96, 6);
+      ctx.quadraticCurveTo(62, 18, 28, 8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,200,90,0.75)";
+      ctx.beginPath();
+      ctx.moveTo(28, 1);
+      ctx.quadraticCurveTo(56, -6, 78, 5);
+      ctx.quadraticCurveTo(56, 12, 28, 7);
+      ctx.closePath();
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -2018,10 +2184,10 @@ function drawDragon(ctx: CanvasRenderingContext2D, camX: number, t: number, e: E
   ctx.fillStyle = "rgba(0,0,0,0.55)";
   ctx.font = "bold 16px serif";
   const nw = ctx.measureText(label).width + 16;
-  ctx.fillRect(x - nw / 2, base - 268, nw, 24);
+  ctx.fillRect(x - nw / 2, base - 272, nw, 24);
   ctx.fillStyle = "#f0e2c0";
   ctx.textAlign = "center";
-  ctx.fillText(label, x, base - 251);
+  ctx.fillText(label, x, base - 255);
   ctx.textAlign = "left";
 }
 

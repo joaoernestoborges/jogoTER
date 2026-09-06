@@ -142,3 +142,17 @@
     color: var(--color-foreground);
   }
 }
+
+/* Créditos finais rolando lentamente após zerar o jogo */
+@keyframes credits-roll {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(-105%);
+  }
+}
+
+.credits-roll {
+  animation: credits-roll 45s linear forwards;
+}
