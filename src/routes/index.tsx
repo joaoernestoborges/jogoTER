@@ -42,9 +42,10 @@ const DIALOGUES = {
   knight: {
     name: "Cavaleiro Cristão",
     lines: [
-      "Nossa vila está sendo atacada!",
-      "Vá até a casa com a cruz vermelha e pegue o escudo templário.",
-      "Com ele você poderá prender o general na parede do moinho!",
+      "Nossa cidade está sendo atacada!",
+      "Estamos em uma guerra religiosa, porém isso não está certo.",
+      "A pluralidade é a lei da vida, que está em todo mundo ao seu redor: na diversidade cultural, na diversidade religiosa e muito mais.",
+      "Além disso, é preciso respeitar essa pluralidade. Vá em busca da paz entre muçulmanos e cristãos!",
     ],
   },
   merchant: {
