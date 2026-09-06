@@ -97,8 +97,8 @@ and a full canvas game loop inside a single `useEffect` (fixed 900×520 canvas,
   `village` → `shieldhouse` → `millinside` (ranking/stars screen) → `fase2`
   (+ `potionhouse` side room).
 - Enemies (village: `soldier` ×2 + `general`; fase 2: `soldier` ×3 + the
-  two-headed `dragon` Preconceito e Discriminação, which only appears after the
-  Pope's dialogue) run a state machine:
+  three-headed `dragon` Preconceito, Discriminação e Intolerância, which only
+  appears after the Pope's dialogue) run a state machine:
   `idle → charging → vulnerable → dizzy → pinned → gone`, timed in frames
   (60 fps assumptions: `CHARGE=120`, `VULN=240`, `DIZZY=180`).
 - Controls: A/D move, Space jump/act, E/W/Q color-matched dodge during enemy

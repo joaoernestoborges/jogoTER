@@ -62,7 +62,7 @@ const DIALOGUES = {
     name: "Profeta Maomé",
     lines: [
       "O Papa está cego pela intolerância...",
-      "O ódio dele deu vida ao Dragão Preconceito e Discriminação!",
+      "O ódio dele deu vida ao Dragão Preconceito, Discriminação e Intolerância!",
       "Leve esta Luz Brilhante e tragam a paz de volta!",
     ],
   },
@@ -97,7 +97,7 @@ const F2_MERCHANT_X = 640; // comerciante árabe (fase 2)
 const F2_POTION_HOUSE_X = 1705; // porta da casa da poção (fase 2)
 const POPE_X = 3480; // papa, após os 3 soldados (fase 2)
 const MUHAMMAD_X = 3580; // profeta Maomé, ao lado do papa (fase 2)
-const DRAGON_X = 3900; // dragão Preconceito e Discriminação
+const DRAGON_X = 3900; // dragão Preconceito, Discriminação e Intolerância
 
 function Index() {
   const [screen, setScreen] = useState<Screen>("menu");
@@ -185,7 +185,7 @@ type Enemy = {
   heads: number; // cabeças restantes (apenas o dragão)
 };
 
-const DRAGON_HEAD_NAMES = ["Discriminação", "Preconceito"];
+const DRAGON_HEAD_NAMES = ["Intolerância", "Discriminação", "Preconceito"];
 
 function dragonHeadName(e: Enemy): string {
   return e.heads > 0 && e.heads <= DRAGON_HEAD_NAMES.length
@@ -202,7 +202,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
         ? "Soldado Muçulmano"
         : kind === "general"
           ? "General Muçulmano"
-          : "Dragão Preconceito e Discriminação",
+          : "Dragão Preconceito, Discriminação e Intolerância",
     state: "idle",
     timer: 0,
     atk: ATTACKS[0]!,
@@ -211,7 +211,7 @@ function makeEnemy(kind: EnemyKind, x: number): Enemy {
     dodged: false,
     bucket: 0,
     shieldThrow: 0,
-    heads: kind === "dragon" ? 2 : 0,
+    heads: kind === "dragon" ? 3 : 0,
   };
 }
 
@@ -285,7 +285,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
         fade = 1;
       } else if (d.npc === "pope") {
         dragonVisible = true;
-        say("O Dragão Preconceito e Discriminação apareceu!");
+        say("O Dragão Preconceito, Discriminação e Intolerância apareceu!");
       } else if (d.npc === "muhammad" && !hasLight) {
         hasLight = true;
         say("Você recebeu a Luz Brilhante!");
@@ -495,7 +495,7 @@ function Game({ onDeath }: { onDeath: () => void }) {
           e.atk = pickAttack();
           say(
             e.kind === "dragon"
-              ? "O Dragão Preconceito e Discriminação apareceu!"
+              ? "O Dragão Preconceito, Discriminação e Intolerância apareceu!"
               : e.name + " apareceu!",
           );
         }

@@ -30,10 +30,11 @@ aula ("Há muito tempo, na Idade Média, houve uma guerra religiosa chamada
 Cruzadas") → interior da casa → aldeia medieval → casa do escudo → moinho
 (ranking com estrelas conforme os corações) → fase 2. Derrote os três soldados
 e o general; na fase 2, vença os três soldados e veja o Papa mandar matar o
-profeta Maomé — mas antes disso surge o dragão Preconceito e Discriminação.
-Ganhe a Luz Brilhante com Maomé, use a poção da casa com a cruz e derrote o
-dragão para zerar o jogo: o Papa e Maomé fazem as pazes e Jerusalém vira
-território pacífico, com o ranking da fase 2 na tela final.
+profeta Maomé — mas antes disso surge o dragão Preconceito, Discriminação e
+Intolerância, de três cabeças. Ganhe a Luz Brilhante com Maomé, use a poção da
+casa com a cruz e derrote o dragão para zerar o jogo: o Papa e Maomé fazem as
+pazes e Jerusalém vira território pacífico, com o ranking da fase 2 na tela
+final.
 
 ## Rodando o projeto
 
