@@ -42,9 +42,10 @@ Requisito: [Bun](https://bun.sh) (npm também funciona).
 ```sh
 bun install        # instala as dependências
 bun run dev        # servidor de desenvolvimento (http://localhost:8080)
-bun run build      # build de produção (Nitro; alvo padrão Cloudflare)
+bun run build      # build de produção (Nitro node-server)
 bun run build:dev  # build em modo de desenvolvimento
-bun run preview    # serve o build de produção
+bun run preview    # serve o build de produção (porta 8080)
+bun run start      # serve o build em produção (porta 8080, para o proxy)
 bun run lint       # ESLint (inclui regras do Prettier)
 bun run format     # Prettier --write .
 ```

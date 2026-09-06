@@ -45,6 +45,9 @@ export default defineConfig(({ command, mode }) => {
       ignoreOutdatedRequests: true,
     },
     server: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br"] },
+    // produção (vite preview) precisa responder no mesmo host e porta que o
+    // proxy reverso espera (je.borges.net.br → :8080), senão dá 502 Bad Gateway
+    preview: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br"] },
     plugins: [
       tailwindcss(),
       tsConfigPaths({ projects: ["./tsconfig.json"] }),
@@ -61,7 +64,9 @@ export default defineConfig(({ command, mode }) => {
         server: { entry: "server" },
       }),
       viteReact(),
-      ...(command === "build" ? [nitro({ defaultPreset: "cloudflare-module" })] : []),
+      ...(command === "build"
+        ? [nitro({ preset: process.env["NITRO_PRESET"] ?? "node-server" })]
+        : []),
     ],
   };
 });

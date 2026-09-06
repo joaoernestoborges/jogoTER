@@ -267,6 +267,10 @@ function Game({ onDeath }: { onDeath: () => void }) {
       const d = dlg;
       if (!d) return;
       const full = DIALOGUES[d.npc].lines[d.idx]!;
+      // consome a tecla/toque: sem isso, o mesmo S que fecha o diálogo
+      // reabria a conversa com o NPC no mesmo frame (diálogo infinito)
+      justPressed["s"] = false;
+      justPressed[" "] = false;
       if (d.chars < full.length) {
         d.chars = full.length;
         return;

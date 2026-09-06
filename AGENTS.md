@@ -24,8 +24,12 @@ bun run format     # Prettier --write .
 - **No tests and no CI exist.** There is no test script; don't invent one.
 - No dedicated typecheck script; `tsconfig.json` has `"noEmit": true`, so a
   plain `tsc` run is a typecheck.
-- Build output/deploy target is Nitro with the Cloudflare preset (see the
-  `nitro` plugin call in `vite.config.ts` and `.wrangler/` in `.gitignore`).
+- Build output is a Nitro **node-server** (`node-server` preset), served on
+  port **8080** behind the reverse proxy for `je.borges.net.br`; `bun run start`
+  runs `.output/server/index.mjs` with `NITRO_PORT=8080` (override the preset
+  with the `NITRO_PRESET` env var). Never build with the `cloudflare-module`
+  preset for this deployment — its `nitro preview` spawns wrangler on a random
+  port and crashes, which is what caused the 502 Bad Gateway.
 
 ## Critical gotchas
 
