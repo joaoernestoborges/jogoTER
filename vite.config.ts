@@ -15,6 +15,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     define: envDefine,
+    base: process.env.VITE_BASE ?? "/",
     ...(isDevBuild
       ? {
           environments: {
@@ -44,10 +45,10 @@ export default defineConfig(({ command, mode }) => {
       ],
       ignoreOutdatedRequests: true,
     },
-    server: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br"] },
+    server: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br/jogoTER","je.borges.net.br"] },
     // produção (vite preview) precisa responder no mesmo host e porta que o
     // proxy reverso espera (je.borges.net.br → :8080), senão dá 502 Bad Gateway
-    preview: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br"] },
+    preview: { host: "::", port: 8080, allowedHosts: ["je.borges.net.br/jogoTER"] },
     plugins: [
       tailwindcss(),
       tsConfigPaths({ projects: ["./tsconfig.json"] }),
